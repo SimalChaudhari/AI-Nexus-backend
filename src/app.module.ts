@@ -17,12 +17,29 @@ import { AppController } from './app.controller';
     ConfigModule.forRoot({ isGlobal: true }), // Load environment variables
     TypeOrmModule.forRoot({
       type: 'postgres',
-      url: process.env.DATABASE_URL,
+      url: (() => {
+        const dbUrl = process.env.DATABASE_URL || '';
+        // Remove sslmode parameter from connection string - we'll handle SSL via TypeORM config
+        // This prevents TypeORM from auto-enabling SSL based on connection string
+        let cleanUrl = dbUrl.replace(/[?&]sslmode=[^&]*/g, '');
+        // Clean up trailing ? or & if they exist
+        cleanUrl = cleanUrl.replace(/[?&]$/, '');
+        return cleanUrl;
+      })(),
       autoLoadEntities: true,
-      synchronize: true,
-      ssl: process.env.DATABASE_URL?.includes('localhost') ? false : {
-        rejectUnauthorized: false,
-      },
+      synchronize: process.env.NODE_ENV !== 'production', // Disable in production for safety
+      ssl: (() => {
+        const dbUrl = process.env.DATABASE_URL || '';
+        // Local development - disable SSL for localhost
+        if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+          return false;
+        }
+        // Production/Live database - enable SSL with self-signed certificate support
+        // This allows connection to Supabase and other cloud databases
+        return {
+          rejectUnauthorized: false,
+        };
+      })(),
     }),
     AuthModule,
     UserModule,
