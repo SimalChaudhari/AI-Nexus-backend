@@ -27,9 +27,18 @@ import { AppController } from './app.controller';
         return cleanUrl;
       })(),
       autoLoadEntities: true,
-      synchronize: process.env.NODE_ENV !== 'production', // Disable in production for safety
+      synchronize: (() => {
+        // Disable synchronize in production for safety
+        // If NODE_ENV is not set, assume production (safer default)
+        const nodeEnv = process.env.NODE_ENV || 'production';
+        return nodeEnv !== 'production';
+      })(),
       ssl: (() => {
         const dbUrl = process.env.DATABASE_URL || '';
+        // If DATABASE_URL is empty, return false (will fail gracefully)
+        if (!dbUrl) {
+          return false;
+        }
         // Local development - disable SSL for localhost
         if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
           return false;
