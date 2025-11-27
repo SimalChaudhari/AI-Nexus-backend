@@ -6,14 +6,28 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function seed() {
+  const dbUrl = process.env.DATABASE_URL || '';
+  
   const dataSource = new DataSource({
     type: 'postgres',
-    url: process.env.DATABASE_URL,
+    url: (() => {
+      // Remove sslmode parameter from connection string - we'll handle SSL via config
+      let cleanUrl = dbUrl.replace(/[?&]sslmode=[^&]*/g, '');
+      cleanUrl = cleanUrl.replace(/[?&]$/, '');
+      return cleanUrl;
+    })(),
     entities: [UserEntity],
     synchronize: false,
-    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : {
-      rejectUnauthorized: false,
-    },
+    ssl: (() => {
+      // Local development - disable SSL for localhost
+      if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+        return false;
+      }
+      // Production/Live database - enable SSL with self-signed certificate support
+      return {
+        rejectUnauthorized: false,
+      };
+    })(),
   });
 
   try {
@@ -32,6 +46,7 @@ async function seed() {
     } else {
       // Create Admin User
       const adminPassword = await bcrypt.hash('Admin@123', 10);
+      const now = new Date();
       const admin = userRepository.create({
         username: 'admin',
         firstname: 'Admin',
@@ -41,6 +56,12 @@ async function seed() {
         role: UserRole.Admin,
         status: UserStatus.Active,
         isVerified: true,
+        verificationToken: null,
+        verificationTokenExpires: null,
+        resetToken: null,
+        resetTokenExpires: null,
+        createdAt: now,
+        updatedAt: now,
       });
 
       await userRepository.save(admin);
@@ -59,6 +80,7 @@ async function seed() {
     } else {
       // Create Regular User
       const userPassword = await bcrypt.hash('User@123', 10);
+      const now = new Date();
       const user = userRepository.create({
         username: 'user',
         firstname: 'Test',
@@ -68,6 +90,12 @@ async function seed() {
         role: UserRole.User,
         status: UserStatus.Active,
         isVerified: true,
+        verificationToken: null,
+        verificationTokenExpires: null,
+        resetToken: null,
+        resetTokenExpires: null,
+        createdAt: now,
+        updatedAt: now,
       });
 
       await userRepository.save(user);
