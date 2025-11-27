@@ -29,6 +29,17 @@ async function bootstrap(): Promise<express.Express> {
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+    // Root route handler (before app.init) - returns health check
+    expressApp.get('/', (req: Request, res: Response) => {
+      res.json({
+        status: 'ok',
+        message: 'AI-Nexus Backend is running successfully',
+        timestamp: new Date().toISOString(),
+        service: 'AI-Nexus Backend',
+        version: '1.0.0',
+      });
+    });
+
     await app.init();
     cachedApp = expressApp;
   }
