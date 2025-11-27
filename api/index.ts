@@ -1,7 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as express from 'express';
+import express from 'express';
+import { Request, Response } from 'express';
 
 let cachedApp: express.Express;
 
@@ -34,7 +35,7 @@ async function bootstrap(): Promise<express.Express> {
   return cachedApp;
 }
 
-export default async (req: express.Request, res: express.Response) => {
+export default async (req: Request, res: Response) => {
   const app = await bootstrap();
   return app(req, res);
 };
