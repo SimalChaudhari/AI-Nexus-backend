@@ -47,7 +47,17 @@ async function bootstrap(): Promise<express.Express> {
 }
 
 export default async (req: Request, res: Response) => {
-  const app = await bootstrap();
-  return app(req, res);
+  try {
+    const app = await bootstrap();
+    return app(req, res);
+  } catch (error) {
+    console.error('Error in serverless function:', error);
+    // Return error response instead of crashing
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+  }
 };
 

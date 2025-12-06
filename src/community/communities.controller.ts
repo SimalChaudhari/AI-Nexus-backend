@@ -15,9 +15,7 @@ import {
     UploadedFiles,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { UserRole } from '../user/users.entity';
 import { Response } from 'express';
 import { CommunityService } from './communities.service';
@@ -26,70 +24,29 @@ import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
 import { RolesGuard } from '../jwt/roles.guard';
 import { Roles } from '../jwt/roles.decorator';
 import { SessionGuard } from '../jwt/session.guard';
+import { CloudinaryService } from '../service/cloudinary.service';
 
 @Controller('communities')
 export class CommunityController {
-    private readonly baseUrl: string;
-
-    constructor(private readonly communityService: CommunityService) {
-        // Ensure directories exist
-        const smallImageDir = join(process.cwd(), 'assets', 'community', 'small');
-        const largeImageDir = join(process.cwd(), 'assets', 'community', 'large');
-        
-        if (!existsSync(smallImageDir)) {
-            mkdirSync(smallImageDir, { recursive: true });
-        }
-        if (!existsSync(largeImageDir)) {
-            mkdirSync(largeImageDir, { recursive: true });
-        }
-
-        // Get base URL from environment variable
-        this.baseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    }
-
-    /**
-     * Transform image path to full URL
-     */
-    private transformImageUrl(imagePath?: string): string | undefined {
-        if (!imagePath) return undefined;
-        // If already a full URL, return as is
-        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-            return imagePath;
-        }
-        // If it's a base64 data URL, return as is
-        if (imagePath.startsWith('data:')) {
-            return imagePath;
-        }
-        // Otherwise, prepend base URL
-        return `${this.baseUrl}${imagePath}`;
-    }
+    constructor(
+        private readonly communityService: CommunityService,
+        private readonly cloudinaryService: CloudinaryService,
+    ) {}
 
     @Get()
     async getAllCommunities(@Res() response: Response) {
         const communities = await this.communityService.getAll();
-        // Transform image paths to full URLs
-        const communitiesWithUrls = communities.map(community => ({
-            ...community,
-            smallImage: this.transformImageUrl(community.smallImage),
-            largeImage: this.transformImageUrl(community.largeImage),
-        }));
         return response.status(HttpStatus.OK).json({
-            length: communitiesWithUrls.length,
-            data: communitiesWithUrls,
+            length: communities.length,
+            data: communities,
         });
     }
 
     @Get(':id')
     async getCommunityById(@Param('id') id: string, @Res() response: Response) {
         const community = await this.communityService.getById(id);
-        // Transform image paths to full URLs
-        const communityWithUrls = {
-            ...community,
-            smallImage: this.transformImageUrl(community.smallImage),
-            largeImage: this.transformImageUrl(community.largeImage),
-        };
         return response.status(HttpStatus.OK).json({
-            data: communityWithUrls,
+            data: community,
         });
     }
 
@@ -101,23 +58,7 @@ export class CommunityController {
             { name: 'smallImage', maxCount: 1 },
             { name: 'largeImage', maxCount: 1 },
         ], {
-            storage: diskStorage({
-                destination: (req, file, cb) => {
-                    const uploadPath = file.fieldname === 'smallImage'
-                        ? join(process.cwd(), 'assets', 'community', 'small')
-                        : join(process.cwd(), 'assets', 'community', 'large');
-                    
-                    if (!existsSync(uploadPath)) {
-                        mkdirSync(uploadPath, { recursive: true });
-                    }
-                    cb(null, uploadPath);
-                },
-                filename: (req, file, cb) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                    const ext = extname(file.originalname);
-                    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-                },
-            }),
+            storage: memoryStorage(),
             limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
         })
     )
@@ -127,29 +68,25 @@ export class CommunityController {
         @UploadedFiles()
         files?: { smallImage?: Express.Multer.File[]; largeImage?: Express.Multer.File[] },
     ) {
-        // Store file paths instead of base64
+        // Upload images to Cloudinary
         if (files) {
             if (files.smallImage && files.smallImage[0]) {
                 const file = files.smallImage[0];
-                createCommunityDto.smallImage = `/assets/community/small/${file.filename}`;
+                const imageUrl = await this.cloudinaryService.uploadImage(file, 'community/small');
+                createCommunityDto.smallImage = imageUrl;
             }
 
             if (files.largeImage && files.largeImage[0]) {
                 const file = files.largeImage[0];
-                createCommunityDto.largeImage = `/assets/community/large/${file.filename}`;
+                const imageUrl = await this.cloudinaryService.uploadImage(file, 'community/large');
+                createCommunityDto.largeImage = imageUrl;
             }
         }
 
         const result = await this.communityService.create(createCommunityDto);
-        // Transform image paths to full URLs
-        const communityWithUrls = {
-            ...result.community,
-            smallImage: this.transformImageUrl(result.community.smallImage),
-            largeImage: this.transformImageUrl(result.community.largeImage),
-        };
         return response.status(HttpStatus.CREATED).json({
             message: result.message,
-            community: communityWithUrls,
+            community: result.community,
         });
     }
 
@@ -161,23 +98,7 @@ export class CommunityController {
             { name: 'smallImage', maxCount: 1 },
             { name: 'largeImage', maxCount: 1 },
         ], {
-            storage: diskStorage({
-                destination: (req, file, cb) => {
-                    const uploadPath = file.fieldname === 'smallImage'
-                        ? join(process.cwd(), 'assets', 'community', 'small')
-                        : join(process.cwd(), 'assets', 'community', 'large');
-                    
-                    if (!existsSync(uploadPath)) {
-                        mkdirSync(uploadPath, { recursive: true });
-                    }
-                    cb(null, uploadPath);
-                },
-                filename: (req, file, cb) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                    const ext = extname(file.originalname);
-                    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-                },
-            }),
+            storage: memoryStorage(),
             limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit per file
         })
     )
@@ -188,29 +109,36 @@ export class CommunityController {
         @UploadedFiles()
         files?: { smallImage?: Express.Multer.File[]; largeImage?: Express.Multer.File[] },
     ) {
-        // Store file paths instead of base64
+        // Get existing community to delete old images if new ones are uploaded
+        const existingCommunity = await this.communityService.getById(id);
+
+        // Upload new images to Cloudinary and delete old ones if replaced
         if (files) {
             if (files.smallImage && files.smallImage[0]) {
+                // Delete old image if it exists and is from Cloudinary
+                if (existingCommunity.smallImage && existingCommunity.smallImage.startsWith('http')) {
+                    await this.cloudinaryService.deleteImage(existingCommunity.smallImage);
+                }
                 const file = files.smallImage[0];
-                updateCommunityDto.smallImage = `/assets/community/small/${file.filename}`;
+                const imageUrl = await this.cloudinaryService.uploadImage(file, 'community/small');
+                updateCommunityDto.smallImage = imageUrl;
             }
 
             if (files.largeImage && files.largeImage[0]) {
+                // Delete old image if it exists and is from Cloudinary
+                if (existingCommunity.largeImage && existingCommunity.largeImage.startsWith('http')) {
+                    await this.cloudinaryService.deleteImage(existingCommunity.largeImage);
+                }
                 const file = files.largeImage[0];
-                updateCommunityDto.largeImage = `/assets/community/large/${file.filename}`;
+                const imageUrl = await this.cloudinaryService.uploadImage(file, 'community/large');
+                updateCommunityDto.largeImage = imageUrl;
             }
         }
 
         const result = await this.communityService.update(id, updateCommunityDto);
-        // Transform image paths to full URLs
-        const communityWithUrls = {
-            ...result.community,
-            smallImage: this.transformImageUrl(result.community.smallImage),
-            largeImage: this.transformImageUrl(result.community.largeImage),
-        };
         return response.status(HttpStatus.OK).json({
             message: result.message,
-            community: communityWithUrls,
+            community: result.community,
         });
     }
 
@@ -218,6 +146,25 @@ export class CommunityController {
     @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
     @Roles(UserRole.Admin)
     async deleteCommunity(@Param('id') id: string, @Res() response: Response) {
+        // Get community before deleting to access image URLs
+        const community = await this.communityService.getById(id);
+        
+        // Delete images from Cloudinary if they exist
+        if (community.smallImage && community.smallImage.startsWith('http')) {
+            try {
+                await this.cloudinaryService.deleteImage(community.smallImage);
+            } catch (error) {
+                console.error('Error deleting small image from Cloudinary:', error);
+            }
+        }
+        if (community.largeImage && community.largeImage.startsWith('http')) {
+            try {
+                await this.cloudinaryService.deleteImage(community.largeImage);
+            } catch (error) {
+                console.error('Error deleting large image from Cloudinary:', error);
+            }
+        }
+
         const result = await this.communityService.delete(id);
         return response.status(HttpStatus.OK).json(result);
     }

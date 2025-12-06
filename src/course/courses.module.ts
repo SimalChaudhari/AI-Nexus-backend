@@ -6,6 +6,7 @@ import { CourseController } from './courses.controller';
 import { CourseEntity } from './courses.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { CloudinaryModule } from '../service/cloudinary.module';
 
 @Module({
     imports: [
@@ -14,6 +15,7 @@ import { JwtModule } from '@nestjs/jwt';
             secret: process.env.JWT_SECRET,
             signOptions: {},
         }),
+        CloudinaryModule,
     ],
     providers: [CourseService],
     controllers: [CourseController],

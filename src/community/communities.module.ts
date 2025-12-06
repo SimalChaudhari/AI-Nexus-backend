@@ -7,6 +7,7 @@ import { CommunityEntity } from './communities.entity';
 import { CategoryEntity } from '../category/categories.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { CloudinaryModule } from '../service/cloudinary.module';
 
 @Module({
     imports: [
@@ -15,6 +16,7 @@ import { JwtModule } from '@nestjs/jwt';
             secret: process.env.JWT_SECRET,
             signOptions: {},
         }),
+        CloudinaryModule,
     ],
     providers: [CommunityService],
     controllers: [CommunityController],

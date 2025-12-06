@@ -83,7 +83,8 @@ export class CourseService {
             course.description = updateCourseDto.description;
         }
         if (updateCourseDto.image !== undefined) {
-            course.image = updateCourseDto.image;
+            // Empty string means clear the image, otherwise set the new image URL
+            course.image = updateCourseDto.image === '' ? undefined : updateCourseDto.image;
         }
         if (updateCourseDto.freeOrPaid !== undefined) {
             course.freeOrPaid = updateCourseDto.freeOrPaid;
