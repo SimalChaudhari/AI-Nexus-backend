@@ -1,6 +1,0 @@
-{
-    "watch": ["src"],
-    "ignore": ["dist", "node_modules"],
-    "exec": "nest start --watch"
-  }
-  
