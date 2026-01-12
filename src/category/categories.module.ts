@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoryService } from './categories.service';
 import { CategoryController } from './categories.controller';
+import { CategoriesInitService } from './categories-init.service';
 import { CategoryEntity } from './categories.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
@@ -15,7 +16,7 @@ import { JwtModule } from '@nestjs/jwt';
             signOptions: {},
         }),
     ],
-    providers: [CategoryService],
+    providers: [CategoryService, CategoriesInitService],
     controllers: [CategoryController],
     exports: [CategoryService],
 })

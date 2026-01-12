@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CourseService } from './courses.service';
 import { CourseController } from './courses.controller';
+import { CoursesInitService } from './courses-init.service';
 import { CourseEntity } from './courses.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
@@ -17,7 +18,7 @@ import { CloudinaryModule } from '../service/cloudinary.module';
         }),
         CloudinaryModule,
     ],
-    providers: [CourseService],
+    providers: [CourseService, CoursesInitService],
     controllers: [CourseController],
     exports: [CourseService],
 })

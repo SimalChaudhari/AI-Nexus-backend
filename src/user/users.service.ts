@@ -54,7 +54,7 @@ export class UserService {
             firstname: createUserDto.firstname,
             lastname: createUserDto.lastname,
             email: createUserDto.email,
-            password: createUserDto.password || await bcrypt.hash('defaultPassword123', 10), // Default password if not provided
+            password: createUserDto.password || await bcrypt.hash('User@123', 10), // Default password if not provided
             role: createUserDto.role || UserRole.User,
             status: createUserDto.status || UserStatus.Active,
             isVerified: false,

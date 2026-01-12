@@ -4,11 +4,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/users.module';
 import { CategoryModule } from './category/categories.module';
-import { CommunityModule } from './community/communities.module';
 import { CourseModule } from './course/courses.module';
 import { LabelModule } from './label/labels.module';
 import { TagModule } from './tag/tags.module';
 import { WorkflowModule } from './workflow/workflows.module';
+import { AnnouncementModule } from './announcement/announcements.module';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 
@@ -32,13 +32,8 @@ import { AppController } from './app.controller';
         console.log('🔗 Using connection URL:', cleanUrl.substring(0, 60) + '...');
         return cleanUrl;
       })(),
-      autoLoadEntities: true,
-      synchronize: (() => {
-        // Disable synchronize in production for safety
-        // If NODE_ENV is not set, assume production (safer default)
-        const nodeEnv = process.env.NODE_ENV || 'production';
-        return nodeEnv !== 'production';
-      })(),
+      autoLoadEntities: true, // Automatically loads all entities (including announcements and comments)
+      synchronize: false, // Disabled - using custom initialization service to create tables
       ssl: (() => {
         const dbUrl = process.env.DATABASE_URL || '';
         // If DATABASE_URL is empty, return false (will fail gracefully)
@@ -79,11 +74,11 @@ import { AppController } from './app.controller';
     AuthModule,
     UserModule,
     CategoryModule,
-    CommunityModule,
     CourseModule,
     LabelModule,
     TagModule,
     WorkflowModule,
+    AnnouncementModule,
   ],
   controllers: [AppController],
 })
