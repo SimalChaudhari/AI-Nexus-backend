@@ -112,8 +112,14 @@ export class AnnouncementController {
     }
 
     @Get(':id/comments')
-    async getComments(@Param('id') announcementId: string, @Res() response: Response) {
-        const comments = await this.announcementService.getComments(announcementId);
+    @UseGuards(OptionalJwtAuthGuard)
+    async getComments(
+        @Param('id') announcementId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        const comments = await this.announcementService.getComments(announcementId, userId);
         return response.status(HttpStatus.OK).json({
             length: comments.length,
             data: comments,
@@ -140,8 +146,63 @@ export class AnnouncementController {
 
     @Delete('comments/delete/:id')
     @UseGuards(SessionGuard, JwtAuthGuard)
-    async deleteComment(@Param('id') commentId: string, @Res() response: Response) {
-        const result = await this.announcementService.deleteComment(commentId);
+    async deleteComment(
+        @Param('id') commentId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({
+                message: 'User not authenticated',
+            });
+        }
+        const result = await this.announcementService.deleteComment(commentId, userId);
+        return response.status(HttpStatus.OK).json(result);
+    }
+
+    @Post('comments/:id/like')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async likeComment(
+        @Param('id') commentId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'User not authenticated' });
+        }
+        const result = await this.announcementService.likeComment(commentId, userId);
+        return response.status(HttpStatus.OK).json(result);
+    }
+
+    @Delete('comments/:id/like')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async unlikeComment(
+        @Param('id') commentId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'User not authenticated' });
+        }
+        const result = await this.announcementService.unlikeComment(commentId, userId);
+        return response.status(HttpStatus.OK).json(result);
+    }
+
+    @Post('comments/:id/toggle-like')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async toggleCommentLike(
+        @Param('id') commentId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'User not authenticated' });
+        }
+        const result = await this.announcementService.toggleCommentLike(commentId, userId);
         return response.status(HttpStatus.OK).json(result);
     }
 

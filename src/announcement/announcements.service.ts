@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AnnouncementEntity } from './announcements.entity';
 import { CommentEntity } from './comments.entity';
+import { CommentLikeEntity } from './comment-likes.entity';
 import { PinnedAnnouncementEntity } from './pinned-announcements.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateAnnouncementDto, UpdateAnnouncementDto, CreateCommentDto, UpdateCommentDto } from './announcements.dto';
-import { UserEntity } from '../user/users.entity';
+import { UserEntity, UserRole } from '../user/users.entity';
 
 @Injectable()
 export class AnnouncementService {
@@ -14,17 +15,27 @@ export class AnnouncementService {
         private announcementRepository: Repository<AnnouncementEntity>,
         @InjectRepository(CommentEntity)
         private commentRepository: Repository<CommentEntity>,
+        @InjectRepository(CommentLikeEntity)
+        private commentLikeRepository: Repository<CommentLikeEntity>,
         @InjectRepository(PinnedAnnouncementEntity)
         private pinnedAnnouncementRepository: Repository<PinnedAnnouncementEntity>,
         @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
     ) {}
 
-    async getAll(userId?: string): Promise<AnnouncementEntity[]> {
+    async getAll(userId?: string): Promise<any[]> {
         const announcements = await this.announcementRepository.find({
             relations: ['comments', 'comments.user'],
             order: { createdAt: 'DESC' },
         });
+
+        // Add like counts to all comments
+        const announcementsWithCommentLikes = await Promise.all(
+            announcements.map(async (announcement) => {
+                const commentsWithLikes = await this.enrichCommentsWithLikes(announcement.comments || [], userId);
+                return { ...announcement, comments: commentsWithLikes };
+            }),
+        );
 
         // If user is logged in, add pinned status
         if (userId) {
@@ -36,18 +47,16 @@ export class AnnouncementService {
             console.log(`📌 User ${userId.substring(0, 8)}... has ${pinnedIds.size} pinned announcements`);
             
             // Add isPinned property to each announcement
-            const announcementsWithPinned = announcements.map((announcement) => ({
+            return announcementsWithCommentLikes.map((announcement) => ({
                 ...announcement,
                 isPinned: pinnedIds.has(announcement.id),
-            })) as AnnouncementEntity[];
-            
-            return announcementsWithPinned;
+            }));
         }
 
-        return announcements;
+        return announcementsWithCommentLikes;
     }
 
-    async getById(id: string, userId?: string): Promise<AnnouncementEntity> {
+    async getById(id: string, userId?: string): Promise<any> {
         const announcement = await this.announcementRepository.findOne({
             where: { id },
             relations: ['comments', 'comments.user'],
@@ -56,18 +65,48 @@ export class AnnouncementService {
             throw new NotFoundException('Announcement not found');
         }
 
+        // Add like counts to comments
+        const commentsWithLikes = await this.enrichCommentsWithLikes(announcement.comments || [], userId);
+
         // If user is logged in, add pinned status
+        let result: any = { ...announcement, comments: commentsWithLikes };
         if (userId) {
             const pinnedAnnouncement = await this.pinnedAnnouncementRepository.findOne({
                 where: { userId, announcementId: id },
             });
-            return {
-                ...announcement,
-                isPinned: !!pinnedAnnouncement,
-            } as AnnouncementEntity;
+            result = { ...result, isPinned: !!pinnedAnnouncement };
         }
 
-        return announcement;
+        return result;
+    }
+
+    private async enrichCommentsWithLikes(comments: CommentEntity[], userId?: string): Promise<any[]> {
+        if (!comments.length) return [];
+        const commentIds = comments.map((c) => c.id);
+        const likeCounts = await this.commentLikeRepository
+            .createQueryBuilder('cl')
+            .select('cl.commentId', 'commentId')
+            .addSelect('COUNT(*)', 'count')
+            .where('cl.commentId IN (:...ids)', { ids: commentIds })
+            .groupBy('cl.commentId')
+            .getRawMany();
+        const countMap = new Map<string, number>();
+        likeCounts.forEach((row: { commentId: string; count: string }) => {
+            countMap.set(row.commentId, parseInt(row.count, 10));
+        });
+        let userLikedIds = new Set<string>();
+        if (userId) {
+            const userLikes = await this.commentLikeRepository.find({
+                where: { userId, commentId: In(commentIds) },
+                select: ['commentId'],
+            });
+            userLikedIds = new Set(userLikes.map((l) => l.commentId));
+        }
+        return comments.map((comment) => ({
+            ...comment,
+            likeCount: countMap.get(comment.id) || 0,
+            likedByCurrentUser: userLikedIds.has(comment.id),
+        }));
     }
 
     async incrementViewCount(id: string): Promise<AnnouncementEntity> {
@@ -141,10 +180,25 @@ export class AnnouncementService {
             throw new NotFoundException('User not found');
         }
 
+        let parentCommentId: string | null = null;
+        if (createCommentDto.parentCommentId) {
+            const parentComment = await this.commentRepository.findOne({
+                where: { id: createCommentDto.parentCommentId },
+            });
+            if (!parentComment) {
+                throw new NotFoundException('Parent comment not found');
+            }
+            if (parentComment.announcementId !== announcementId) {
+                throw new NotFoundException('Parent comment does not belong to this announcement');
+            }
+            parentCommentId = parentComment.id;
+        }
+
         const commentData: Partial<CommentEntity> = {
             content: createCommentDto.content,
-            announcementId: announcementId,
-            userId: userId,
+            announcementId,
+            userId,
+            parentCommentId,
         };
 
         const comment = this.commentRepository.create(commentData);
@@ -162,17 +216,48 @@ export class AnnouncementService {
         };
     }
 
-    async getComments(announcementId: string): Promise<CommentEntity[]> {
+    async getComments(announcementId: string, userId?: string): Promise<any[]> {
         const announcement = await this.announcementRepository.findOne({ where: { id: announcementId } });
         if (!announcement) {
             throw new NotFoundException('Announcement not found');
         }
 
-        return await this.commentRepository.find({
+        const comments = await this.commentRepository.find({
             where: { announcementId },
             relations: ['user'],
             order: { createdAt: 'DESC' },
         });
+
+        // Get like counts and liked status for each comment
+        const commentIds = comments.map((c) => c.id);
+        const likeCounts = await this.commentLikeRepository
+            .createQueryBuilder('cl')
+            .select('cl.commentId', 'commentId')
+            .addSelect('COUNT(*)', 'count')
+            .where('cl.commentId IN (:...ids)', { ids: commentIds })
+            .groupBy('cl.commentId')
+            .getRawMany();
+
+        const countMap = new Map<string, number>();
+        likeCounts.forEach((row: { commentId: string; count: string }) => {
+            countMap.set(row.commentId, parseInt(row.count, 10));
+        });
+
+        let userLikedIds = new Set<string>();
+        if (userId) {
+            const userLikes = await this.commentLikeRepository.find({
+                where: { userId, commentId: In(commentIds) },
+                select: ['commentId'],
+            });
+            userLikedIds = new Set(userLikes.map((l) => l.commentId));
+        }
+
+        return comments.map((comment) => ({
+            ...comment,
+            parentCommentId: comment.parentCommentId ?? null,
+            likeCount: countMap.get(comment.id) || 0,
+            likedByCurrentUser: userLikedIds.has(comment.id),
+        }));
     }
 
     async updateComment(commentId: string, userId: string, updateCommentDto: UpdateCommentDto): Promise<{ message: string; comment: CommentEntity }> {
@@ -184,8 +269,10 @@ export class AnnouncementService {
             throw new NotFoundException('Comment not found');
         }
 
-        // Check if user owns the comment
-        if (comment.userId !== userId) {
+        const user = await this.userRepository.findOne({ where: { id: userId }, select: ['id', 'role'] });
+        const isAdmin = user?.role === UserRole.Admin;
+        const isOwner = comment.userId === userId;
+        if (!isOwner && !isAdmin) {
             throw new NotFoundException('You can only update your own comments');
         }
 
@@ -204,14 +291,110 @@ export class AnnouncementService {
         };
     }
 
-    async deleteComment(commentId: string): Promise<{ message: string }> {
+    async deleteComment(commentId: string, userId: string): Promise<{ message: string }> {
         const comment = await this.commentRepository.findOne({ where: { id: commentId } });
         if (!comment) {
             throw new NotFoundException('Comment not found');
         }
 
-        await this.commentRepository.remove(comment);
+        const user = await this.userRepository.findOne({ where: { id: userId }, select: ['id', 'role'] });
+        const isAdmin = user?.role === UserRole.Admin;
+        const isOwner = comment.userId === userId;
+        if (!isOwner && !isAdmin) {
+            throw new NotFoundException('You can only delete your own comments');
+        }
+
+        // Collect this comment and all descendant reply IDs
+        const idsToDelete = new Set<string>([commentId]);
+        let added = 1;
+        while (added > 0) {
+            added = 0;
+            const replies = await this.commentRepository.find({
+                where: { parentCommentId: In([...idsToDelete]) },
+                select: ['id'],
+            });
+            for (const r of replies) {
+                if (!idsToDelete.has(r.id)) {
+                    idsToDelete.add(r.id);
+                    added += 1;
+                }
+            }
+        }
+        const allIds = [...idsToDelete];
+
+        // Delete all associated likes (comment_likes where commentId in allIds)
+        if (allIds.length > 0) {
+            await this.commentLikeRepository.delete({ commentId: In(allIds) });
+        }
+
+        // Delete comments: children before parents (leaves first)
+        let remaining = new Set(allIds);
+        while (remaining.size > 0) {
+            const asArray = [...remaining];
+            const commentsInSet = await this.commentRepository.find({
+                where: { id: In(asArray) },
+                select: ['id', 'parentCommentId'],
+            });
+            const parentIdsInSet = new Set(
+                commentsInSet.map((c) => c.parentCommentId).filter((id): id is string => id != null && remaining.has(id)),
+            );
+            const leaves = asArray.filter((id) => !parentIdsInSet.has(id));
+            for (const id of leaves) {
+                await this.commentRepository.delete(id);
+                remaining.delete(id);
+            }
+        }
+
         return { message: 'Comment deleted successfully' };
+    }
+
+    async likeComment(commentId: string, userId: string): Promise<{ message: string; liked: boolean }> {
+        const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+        if (!comment) {
+            throw new NotFoundException('Comment not found');
+        }
+
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) {
+            throw new NotFoundException('User not found');
+        }
+
+        const existingLike = await this.commentLikeRepository.findOne({
+            where: { userId, commentId },
+        });
+
+        if (existingLike) {
+            return { message: 'Comment already liked', liked: true };
+        }
+
+        const like = this.commentLikeRepository.create({ userId, commentId });
+        await this.commentLikeRepository.save(like);
+        return { message: 'Comment liked successfully', liked: true };
+    }
+
+    async unlikeComment(commentId: string, userId: string): Promise<{ message: string; liked: boolean }> {
+        const existingLike = await this.commentLikeRepository.findOne({
+            where: { userId, commentId },
+        });
+
+        if (!existingLike) {
+            return { message: 'Comment not liked', liked: false };
+        }
+
+        await this.commentLikeRepository.remove(existingLike);
+        return { message: 'Comment unliked successfully', liked: false };
+    }
+
+    async toggleCommentLike(commentId: string, userId: string): Promise<{ message: string; liked: boolean }> {
+        const existingLike = await this.commentLikeRepository.findOne({
+            where: { userId, commentId },
+        });
+
+        if (existingLike) {
+            await this.commentLikeRepository.remove(existingLike);
+            return { message: 'Comment unliked successfully', liked: false };
+        }
+        return await this.likeComment(commentId, userId);
     }
 
     async pinAnnouncement(announcementId: string, userId: string): Promise<{ message: string; pinned: boolean }> {
