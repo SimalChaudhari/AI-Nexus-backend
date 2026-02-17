@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { QuestionService } from './questions.service';
 import { QuestionController } from './questions.controller';
 import { QuestionsInitService } from './questions-init.service';
+import { QuestionCommentsGateway } from './question-comments.gateway';
 import { QuestionEntity } from './questions.entity';
 import { QuestionCommentEntity } from './question-comments.entity';
 import { QuestionCommentLikeEntity } from './question-comment-likes.entity';
@@ -19,7 +20,7 @@ import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
             signOptions: {},
         }),
     ],
-    providers: [QuestionService, QuestionsInitService, OptionalJwtAuthGuard],
+    providers: [QuestionService, QuestionsInitService, QuestionCommentsGateway, OptionalJwtAuthGuard],
     controllers: [QuestionController],
     exports: [QuestionService],
 })

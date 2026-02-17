@@ -3,12 +3,15 @@ import { AppModule } from './app.module';
 import { Request, Response, NextFunction } from 'express';
 import * as express from 'express';
 import { join } from 'path';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   try {
    
     const app = await NestFactory.create(AppModule);
     const port = process.env.PORT || 3000;
+
+    app.useWebSocketAdapter(new IoAdapter(app));
     
     // Set global prefix for all routes (except root)
     app.setGlobalPrefix('api');

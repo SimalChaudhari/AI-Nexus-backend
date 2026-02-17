@@ -45,6 +45,10 @@ export class CourseService {
             courseData.image = createCourseDto.image;
         }
 
+        if (createCourseDto.video !== undefined && createCourseDto.video !== '') {
+            courseData.video = createCourseDto.video;
+        }
+
         const course = this.courseRepository.create(courseData);
 
         await this.courseRepository.save(course);
@@ -98,6 +102,9 @@ export class CourseService {
         }
         if (updateCourseDto.level !== undefined) {
             course.level = updateCourseDto.level;
+        }
+        if (updateCourseDto.video !== undefined) {
+            course.video = updateCourseDto.video === '' ? undefined : updateCourseDto.video;
         }
 
         await this.courseRepository.save(course);

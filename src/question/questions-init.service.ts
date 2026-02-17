@@ -21,15 +21,38 @@ export class QuestionsInitService implements OnModuleInit {
                         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                         "title" varchar NOT NULL,
                         "description" text NOT NULL,
+                        "userId" uuid NULL,
                         "viewCount" integer NOT NULL DEFAULT 0,
                         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
                         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-                        CONSTRAINT "PK_questions" PRIMARY KEY ("id")
+                        CONSTRAINT "PK_questions" PRIMARY KEY ("id"),
+                        CONSTRAINT "FK_questions_user" FOREIGN KEY ("userId") 
+                            REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION
                     )
                 `);
                 console.log('✅ Questions table created successfully');
             } else {
                 console.log('✅ Questions table already exists');
+                // Migration: add userId column if missing (optional, for logged-in author)
+                const hasUserId = await queryRunner.query(`
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'questions' AND column_name = 'userId'
+                `);
+                if (!hasUserId?.length) {
+                    console.log('📋 Adding userId to questions table...');
+                    await queryRunner.query(`
+                        ALTER TABLE "questions" ADD COLUMN IF NOT EXISTS "userId" uuid NULL;
+                        DO $$ BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint WHERE conname = 'FK_questions_user'
+                            ) THEN
+                                ALTER TABLE "questions" ADD CONSTRAINT "FK_questions_user" 
+                                    FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+                            END IF;
+                        END $$;
+                    `);
+                    console.log('✅ userId column added to questions');
+                }
             }
 
             // Create question_comments table

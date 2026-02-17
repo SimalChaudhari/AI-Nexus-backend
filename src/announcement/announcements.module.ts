@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnnouncementService } from './announcements.service';
 import { AnnouncementController } from './announcements.controller';
 import { AnnouncementsInitService } from './announcements-init.service';
+import { AnnouncementCommentsGateway } from './announcement-comments.gateway';
 import { AnnouncementEntity } from './announcements.entity';
 import { CommentEntity } from './comments.entity';
 import { CommentLikeEntity } from './comment-likes.entity';
@@ -19,7 +20,7 @@ import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
             signOptions: {},
         }),
     ],
-    providers: [AnnouncementService, AnnouncementsInitService, OptionalJwtAuthGuard],
+    providers: [AnnouncementService, AnnouncementsInitService, AnnouncementCommentsGateway, OptionalJwtAuthGuard],
     controllers: [AnnouncementController],
     exports: [AnnouncementService],
 })

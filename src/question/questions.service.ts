@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { QuestionEntity } from './questions.entity';
 import { QuestionCommentEntity } from './question-comments.entity';
 import { QuestionCommentLikeEntity } from './question-comment-likes.entity';
@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CreateQuestionDto, UpdateQuestionDto, CreateQuestionCommentDto, UpdateQuestionCommentDto } from './questions.dto';
 import { UserEntity, UserRole } from '../user/users.entity';
+import { QuestionCommentsGateway } from './question-comments.gateway';
 
 @Injectable()
 export class QuestionService {
@@ -21,6 +22,7 @@ export class QuestionService {
         private pinnedQuestionRepository: Repository<PinnedQuestionEntity>,
         @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
+        private questionCommentsGateway: QuestionCommentsGateway,
     ) {}
 
     async getAll(userId?: string): Promise<any[]> {
@@ -64,6 +66,35 @@ export class QuestionService {
             result = { ...result, isPinned: !!pinnedQuestion };
         }
         return result;
+    }
+
+    /** Serialize comment for WebSocket (no circular refs). */
+    private toCommentPayload(
+        comment: QuestionCommentEntity & { user?: UserEntity },
+        likeCount: number,
+        likedByCurrentUser: boolean,
+    ): Record<string, unknown> {
+        const user = comment.user;
+        return {
+            id: comment.id,
+            content: comment.content,
+            userId: comment.userId,
+            questionId: comment.questionId,
+            parentCommentId: comment.parentCommentId ?? null,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            likeCount,
+            likedByCurrentUser,
+            user: user
+                ? {
+                    id: user.id,
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    username: user.username,
+                    email: user.email,
+                }
+                : null,
+        };
     }
 
     private async enrichCommentsWithLikes(
@@ -112,15 +143,18 @@ export class QuestionService {
         return question;
     }
 
-    async create(createQuestionDto: CreateQuestionDto): Promise<{ message: string; question: QuestionEntity }> {
+    async create(createQuestionDto: CreateQuestionDto, userId?: string): Promise<{ message: string; question: QuestionEntity }> {
         const questionData: Partial<QuestionEntity> = {
             title: createQuestionDto.title,
             description: createQuestionDto.description,
             viewCount: 0,
+            userId: userId ?? null,
         };
 
         const question = this.questionRepository.create(questionData);
         await this.questionRepository.save(question);
+
+        this.questionCommentsGateway.emitToQuestionsList('question:created', question);
 
         return {
             message: 'Question created successfully',
@@ -128,10 +162,14 @@ export class QuestionService {
         };
     }
 
-    async update(id: string, updateQuestionDto: UpdateQuestionDto): Promise<{ message: string; question: QuestionEntity }> {
+    async update(id: string, updateQuestionDto: UpdateQuestionDto, userId?: string): Promise<{ message: string; question: QuestionEntity }> {
         const question = await this.questionRepository.findOne({ where: { id } });
         if (!question) {
             throw new NotFoundException('Question not found');
+        }
+
+        if (userId != null && question.userId !== userId) {
+            throw new ForbiddenException('Not authorized to update this question');
         }
 
         if (updateQuestionDto.title !== undefined) {
@@ -142,6 +180,9 @@ export class QuestionService {
         }
 
         await this.questionRepository.save(question);
+
+        this.questionCommentsGateway.emitToQuestionsList('question:updated', question);
+
         return {
             message: 'Question updated successfully',
             question,
@@ -155,6 +196,9 @@ export class QuestionService {
         }
 
         await this.questionRepository.remove(question);
+
+        this.questionCommentsGateway.emitToQuestionsList('question:deleted', { questionId: id });
+
         return { message: 'Question deleted successfully' };
     }
 
@@ -201,6 +245,9 @@ export class QuestionService {
             where: { id: comment.id },
             relations: ['user', 'question'],
         });
+
+        const payload = this.toCommentPayload(commentWithRelations!, 0, false);
+        this.questionCommentsGateway.emitToQuestion(questionId, 'comment:added', payload);
 
         return {
             message: 'Comment added successfully',
@@ -283,6 +330,19 @@ export class QuestionService {
             relations: ['user', 'question'],
         });
 
+        const questionId = comment.questionId;
+        const likeData = await this.commentLikeRepository
+            .createQueryBuilder('cl')
+            .select('COUNT(*)', 'count')
+            .where('cl.commentId = :id', { id: comment.id })
+            .getRawOne();
+        const likeCount = parseInt(likeData?.count ?? '0', 10);
+        const userLiked = await this.commentLikeRepository.findOne({
+            where: { userId, commentId: comment.id },
+        });
+        const payload = this.toCommentPayload(updatedComment!, likeCount, !!userLiked);
+        this.questionCommentsGateway.emitToQuestion(questionId, 'comment:updated', payload);
+
         return {
             message: 'Comment updated successfully',
             comment: updatedComment!,
@@ -294,6 +354,8 @@ export class QuestionService {
         if (!comment) {
             throw new NotFoundException('Comment not found');
         }
+
+        const questionId = comment.questionId;
 
         const user = await this.userRepository.findOne({ where: { id: userId }, select: ['id', 'role'] });
         const isAdmin = user?.role === UserRole.Admin;
@@ -341,6 +403,12 @@ export class QuestionService {
             }
         }
 
+        this.questionCommentsGateway.emitToQuestion(questionId, 'comment:deleted', {
+            commentId,
+            questionId,
+            deletedIds: allIds,
+        });
+
         return { message: 'Comment deleted successfully' };
     }
 
@@ -381,16 +449,41 @@ export class QuestionService {
         return { message: 'Comment unliked successfully', liked: false };
     }
 
-    async toggleCommentLike(commentId: string, userId: string): Promise<{ message: string; liked: boolean }> {
+    async toggleCommentLike(
+        commentId: string,
+        userId: string,
+    ): Promise<{ message: string; liked: boolean; likeCount: number }> {
+        const comment = await this.commentRepository.findOne({ where: { id: commentId }, select: ['id', 'questionId'] });
+        if (!comment) {
+            throw new NotFoundException('Comment not found');
+        }
+        const questionId = comment.questionId;
+
         const existingLike = await this.commentLikeRepository.findOne({
             where: { userId, commentId },
         });
 
+        let result: { message: string; liked: boolean };
         if (existingLike) {
             await this.commentLikeRepository.remove(existingLike);
-            return { message: 'Comment unliked successfully', liked: false };
+            result = { message: 'Comment unliked successfully', liked: false };
+        } else {
+            result = await this.likeComment(commentId, userId);
         }
-        return await this.likeComment(commentId, userId);
+
+        const likeCount = await this.commentLikeRepository
+            .createQueryBuilder('cl')
+            .select('COUNT(*)', 'count')
+            .where('cl.commentId = :id', { id: commentId })
+            .getRawOne();
+        const count = parseInt(likeCount?.count ?? '0', 10);
+        this.questionCommentsGateway.emitToQuestion(questionId, 'comment:likeToggled', {
+            commentId,
+            liked: result.liked,
+            likeCount: count,
+        });
+
+        return { ...result, likeCount: count };
     }
 
     async pinQuestion(questionId: string, userId: string): Promise<{ message: string; pinned: boolean }> {

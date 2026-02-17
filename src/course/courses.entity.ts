@@ -20,6 +20,9 @@ export class CourseEntity {
     @Column({ type: 'text', nullable: true })
     image?: string; // Store file path
 
+    @Column({ type: 'varchar', length: 500, nullable: true })
+    video?: string; // YouTube or other video link
+
     @Column({ type: 'boolean', default: false })
     freeOrPaid!: boolean; // false = free, true = paid
 

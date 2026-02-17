@@ -19,6 +19,10 @@ export class CreateCourseDto {
     image?: string; // File path (converted from file in controller)
 
     @IsOptional()
+    @IsString()
+    video?: string; // YouTube or other video link
+
+    @IsOptional()
     @IsBoolean()
     freeOrPaid?: boolean;
 
@@ -46,6 +50,10 @@ export class UpdateCourseDto {
     @IsOptional()
     @IsString()
     image?: string;
+
+    @IsOptional()
+    @IsString()
+    video?: string;
 
     @IsOptional()
     @IsBoolean()

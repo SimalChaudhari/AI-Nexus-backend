@@ -21,6 +21,7 @@ export class CoursesInitService implements OnModuleInit {
             "title" varchar NOT NULL,
             "description" text,
             "image" text,
+            "video" varchar(500),
             "freeOrPaid" boolean NOT NULL DEFAULT false,
             "amount" decimal(10,2) DEFAULT 0,
             "level" varchar NOT NULL DEFAULT 'Beginner',
@@ -32,6 +33,16 @@ export class CoursesInitService implements OnModuleInit {
         console.log('✅ Courses table created successfully');
       } else {
         console.log('✅ Courses table already exists');
+        // Add video column if it doesn't exist (for existing databases)
+        const hasVideoColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'video'
+        `);
+        if (!hasVideoColumn?.length) {
+          console.log('📋 Adding video column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "video" varchar(500)`);
+          console.log('✅ Video column added successfully');
+        }
       }
 
       await queryRunner.release();

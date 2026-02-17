@@ -56,22 +56,28 @@ export class QuestionController {
     }
 
     @Post()
-    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.Admin)
-    async createQuestion(@Body() createQuestionDto: CreateQuestionDto, @Res() response: Response) {
-        const result = await this.questionService.create(createQuestionDto);
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async createQuestion(
+        @Body() createQuestionDto: CreateQuestionDto,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = request.user?.id;
+        const result = await this.questionService.create(createQuestionDto, userId);
         return response.status(HttpStatus.CREATED).json(result);
     }
 
     @Put('update/:id')
-    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.Admin)
+    @UseGuards(SessionGuard, JwtAuthGuard)
     async updateQuestion(
         @Param('id') id: string,
         @Body() updateQuestionDto: UpdateQuestionDto,
+        @Req() request: Request,
         @Res() response: Response,
     ) {
-        const result = await this.questionService.update(id, updateQuestionDto);
+        const isAdmin = request.user?.role === UserRole.Admin;
+        const userId = isAdmin ? undefined : request.user?.id;
+        const result = await this.questionService.update(id, updateQuestionDto, userId);
         return response.status(HttpStatus.OK).json(result);
     }
 

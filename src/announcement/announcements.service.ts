@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CreateAnnouncementDto, UpdateAnnouncementDto, CreateCommentDto, UpdateCommentDto } from './announcements.dto';
 import { UserEntity, UserRole } from '../user/users.entity';
+import { AnnouncementCommentsGateway } from './announcement-comments.gateway';
 
 @Injectable()
 export class AnnouncementService {
@@ -21,6 +22,7 @@ export class AnnouncementService {
         private pinnedAnnouncementRepository: Repository<PinnedAnnouncementEntity>,
         @InjectRepository(UserEntity)
         private userRepository: Repository<UserEntity>,
+        private announcementCommentsGateway: AnnouncementCommentsGateway,
     ) {}
 
     async getAll(userId?: string): Promise<any[]> {
@@ -80,6 +82,35 @@ export class AnnouncementService {
         return result;
     }
 
+    /** Serialize comment for WebSocket (no circular refs). */
+    private toCommentPayload(
+        comment: CommentEntity & { user?: UserEntity },
+        likeCount: number,
+        likedByCurrentUser: boolean,
+    ): Record<string, unknown> {
+        const user = comment.user;
+        return {
+            id: comment.id,
+            content: comment.content,
+            userId: comment.userId,
+            announcementId: comment.announcementId,
+            parentCommentId: comment.parentCommentId ?? null,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            likeCount,
+            likedByCurrentUser,
+            user: user
+                ? {
+                    id: user.id,
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    username: user.username,
+                    email: user.email,
+                }
+                : null,
+        };
+    }
+
     private async enrichCommentsWithLikes(comments: CommentEntity[], userId?: string): Promise<any[]> {
         if (!comments.length) return [];
         const commentIds = comments.map((c) => c.id);
@@ -132,7 +163,9 @@ export class AnnouncementService {
 
         const announcement = this.announcementRepository.create(announcementData);
         await this.announcementRepository.save(announcement);
-        
+
+        this.announcementCommentsGateway.emitToAnnouncementsList('announcement:created', announcement);
+
         return {
             message: 'Announcement created successfully',
             announcement: announcement,
@@ -153,6 +186,9 @@ export class AnnouncementService {
         }
 
         await this.announcementRepository.save(announcement);
+
+        this.announcementCommentsGateway.emitToAnnouncementsList('announcement:updated', announcement);
+
         return {
             message: 'Announcement updated successfully',
             announcement: announcement,
@@ -166,6 +202,9 @@ export class AnnouncementService {
         }
 
         await this.announcementRepository.remove(announcement);
+
+        this.announcementCommentsGateway.emitToAnnouncementsList('announcement:deleted', { announcementId: id });
+
         return { message: 'Announcement deleted successfully' };
     }
 
@@ -210,6 +249,9 @@ export class AnnouncementService {
             relations: ['user', 'announcement'],
         });
 
+        const payload = this.toCommentPayload(commentWithRelations!, 0, false);
+        this.announcementCommentsGateway.emitToAnnouncement(announcementId, 'comment:added', payload);
+
         return {
             message: 'Comment added successfully',
             comment: commentWithRelations!,
@@ -228,8 +270,17 @@ export class AnnouncementService {
             order: { createdAt: 'DESC' },
         });
 
-        // Get like counts and liked status for each comment
         const commentIds = comments.map((c) => c.id);
+        if (commentIds.length === 0) {
+            return comments.map((comment) => ({
+                ...comment,
+                parentCommentId: comment.parentCommentId ?? null,
+                likeCount: 0,
+                likedByCurrentUser: false,
+            }));
+        }
+
+        // Get like counts and liked status for each comment
         const likeCounts = await this.commentLikeRepository
             .createQueryBuilder('cl')
             .select('cl.commentId', 'commentId')
@@ -285,6 +336,19 @@ export class AnnouncementService {
             relations: ['user', 'announcement'],
         });
 
+        const announcementId = comment.announcementId;
+        const likeData = await this.commentLikeRepository
+            .createQueryBuilder('cl')
+            .select('COUNT(*)', 'count')
+            .where('cl.commentId = :id', { id: comment.id })
+            .getRawOne();
+        const likeCount = parseInt(likeData?.count ?? '0', 10);
+        const userLiked = await this.commentLikeRepository.findOne({
+            where: { userId, commentId: comment.id },
+        });
+        const payload = this.toCommentPayload(updatedComment!, likeCount, !!userLiked);
+        this.announcementCommentsGateway.emitToAnnouncement(announcementId, 'comment:updated', payload);
+
         return {
             message: 'Comment updated successfully',
             comment: updatedComment!,
@@ -296,6 +360,8 @@ export class AnnouncementService {
         if (!comment) {
             throw new NotFoundException('Comment not found');
         }
+
+        const announcementId = comment.announcementId;
 
         const user = await this.userRepository.findOne({ where: { id: userId }, select: ['id', 'role'] });
         const isAdmin = user?.role === UserRole.Admin;
@@ -344,6 +410,12 @@ export class AnnouncementService {
                 remaining.delete(id);
             }
         }
+
+        this.announcementCommentsGateway.emitToAnnouncement(announcementId, 'comment:deleted', {
+            commentId,
+            announcementId,
+            deletedIds: allIds,
+        });
 
         return { message: 'Comment deleted successfully' };
     }
