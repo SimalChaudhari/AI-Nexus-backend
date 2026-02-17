@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/users.module';
 import { CategoryModule } from './category/categories.module';
-import { CourseModule } from './courses/courses.module';
+import { CourseModule } from './course/courses.module';
 import { LabelModule } from './label/labels.module';
 import { TagModule } from './tag/tags.module';
 import { WorkflowModule } from './workflow/workflows.module';
