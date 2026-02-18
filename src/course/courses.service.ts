@@ -8,6 +8,20 @@ import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+/** Normalize languageIds from DTO (multipart sends JSON string, not array) */
+function normalizeLanguageIds(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((x): x is string => typeof x === 'string');
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 @Injectable()
 export class CourseService {
     constructor(
@@ -47,6 +61,19 @@ export class CourseService {
 
         if (createCourseDto.video !== undefined && createCourseDto.video !== '') {
             courseData.video = createCourseDto.video;
+        }
+
+        if (createCourseDto.languageIds !== undefined) {
+            courseData.languageIds = normalizeLanguageIds(createCourseDto.languageIds);
+        }
+        if (createCourseDto.spikerIds !== undefined) {
+            courseData.spikerIds = normalizeLanguageIds(createCourseDto.spikerIds);
+        }
+        if (createCourseDto.marketData !== undefined) {
+            courseData.marketData = createCourseDto.marketData;
+        }
+        if (createCourseDto.review !== undefined) {
+            courseData.review = createCourseDto.review;
         }
 
         const course = this.courseRepository.create(courseData);
@@ -105,6 +132,18 @@ export class CourseService {
         }
         if (updateCourseDto.video !== undefined) {
             course.video = updateCourseDto.video === '' ? undefined : updateCourseDto.video;
+        }
+        if (updateCourseDto.languageIds !== undefined) {
+            course.languageIds = normalizeLanguageIds(updateCourseDto.languageIds);
+        }
+        if (updateCourseDto.spikerIds !== undefined) {
+            course.spikerIds = normalizeLanguageIds(updateCourseDto.spikerIds);
+        }
+        if (updateCourseDto.marketData !== undefined) {
+            course.marketData = updateCourseDto.marketData;
+        }
+        if (updateCourseDto.review !== undefined) {
+            course.review = updateCourseDto.review;
         }
 
         await this.courseRepository.save(course);

@@ -36,6 +36,31 @@ export class CourseEntity {
     })
     level!: CourseLevel;
 
+    /** Language IDs this course is available in (array of UUIDs) */
+    @Column({ type: 'jsonb', nullable: true })
+    languageIds?: string[];
+
+    /** Spiker IDs (instructors/speakers) for this course */
+    @Column({ type: 'jsonb', nullable: true })
+    spikerIds?: string[];
+
+    /** Optional market data (plain string, stored as JSON string in jsonb column) */
+    @Column({
+      type: 'jsonb',
+      nullable: true,
+      transformer: {
+        to: (value: string | null | undefined) =>
+          value == null || value === '' ? null : JSON.stringify(value),
+        from: (value: string | null | undefined) =>
+          value == null ? undefined : (typeof value === 'string' ? value : JSON.stringify(value)),
+      },
+    })
+    marketData?: string;
+
+    /** Review count or rating (e.g. number of reviews) */
+    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
+    review?: number;
+
     @CreateDateColumn({ type: 'timestamp' })
     createdAt!: Date;
 

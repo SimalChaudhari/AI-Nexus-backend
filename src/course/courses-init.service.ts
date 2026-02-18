@@ -25,6 +25,10 @@ export class CoursesInitService implements OnModuleInit {
             "freeOrPaid" boolean NOT NULL DEFAULT false,
             "amount" decimal(10,2) DEFAULT 0,
             "level" varchar NOT NULL DEFAULT 'Beginner',
+            "languageIds" jsonb,
+            "spikerIds" jsonb,
+            "marketData" jsonb,
+            "review" decimal(10,2) DEFAULT 0,
             "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
             "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
             CONSTRAINT "PK_courses" PRIMARY KEY ("id")
@@ -42,6 +46,46 @@ export class CoursesInitService implements OnModuleInit {
           console.log('📋 Adding video column to courses table...');
           await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "video" varchar(500)`);
           console.log('✅ Video column added successfully');
+        }
+
+        const hasLanguageIdsColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'languageIds'
+        `);
+        if (!hasLanguageIdsColumn?.length) {
+          console.log('📋 Adding languageIds column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "languageIds" jsonb`);
+          console.log('✅ languageIds column added successfully');
+        }
+
+        const hasSpikerIdsColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'spikerIds'
+        `);
+        if (!hasSpikerIdsColumn?.length) {
+          console.log('📋 Adding spikerIds column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "spikerIds" jsonb`);
+          console.log('✅ spikerIds column added successfully');
+        }
+
+        const hasMarketDataColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'marketData'
+        `);
+        if (!hasMarketDataColumn?.length) {
+          console.log('📋 Adding marketData column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "marketData" jsonb`);
+          console.log('✅ marketData column added successfully');
+        }
+
+        const hasReviewColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'review'
+        `);
+        if (!hasReviewColumn?.length) {
+          console.log('📋 Adding review column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "review" decimal(10,2) DEFAULT 0`);
+          console.log('✅ review column added successfully');
         }
       }
 

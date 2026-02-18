@@ -10,6 +10,8 @@ import { TagModule } from './tag/tags.module';
 import { WorkflowModule } from './workflow/workflows.module';
 import { AnnouncementModule } from './announcement/announcements.module';
 import { QuestionModule } from './question/questions.module';
+import { SpikerModule } from './spikers/spikers.module';
+import { LanguageModule } from './language/language.module';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 
@@ -81,6 +83,8 @@ import { AppController } from './app.controller';
     WorkflowModule,
     AnnouncementModule,
     QuestionModule,
+    SpikerModule,
+    LanguageModule,
   ],
   controllers: [AppController],
 })
