@@ -40,6 +40,16 @@ async function bootstrap(): Promise<express.Express> {
       });
     });
 
+    // Socket.IO / WebSockets are not supported on Vercel serverless (no persistent connections).
+    // Return 503 so clients get a clear response instead of 404.
+    expressApp.use('/socket.io', (_req: Request, res: Response) => {
+      res.status(503).json({
+        error: 'WebSockets not available',
+        message: 'Socket.IO is not supported on this serverless deployment. Use a persistent server (e.g. Railway, Render) or a real-time service (e.g. Pusher, Ably) for live features.',
+        code: 'WEBSOCKET_UNSUPPORTED',
+      });
+    });
+
     await app.init();
     cachedApp = expressApp;
   }
