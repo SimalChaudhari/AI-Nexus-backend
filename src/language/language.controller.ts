@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { LanguageService } from 'language/language.service';
+import { LanguageService } from './language.service';
 import { CreateLanguageDto, UpdateLanguageDto } from './language.dto';
 import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
 import { RolesGuard } from '../jwt/roles.guard';
