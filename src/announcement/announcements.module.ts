@@ -11,12 +11,13 @@ import { PinnedAnnouncementEntity } from './pinned-announcements.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([AnnouncementEntity, CommentEntity, CommentLikeEntity, PinnedAnnouncementEntity, UserEntity]),
         JwtModule.register({
-            secret: process.env.JWT_SECRET,
+            secret: getJwtSecret(),
             signOptions: {},
         }),
     ],

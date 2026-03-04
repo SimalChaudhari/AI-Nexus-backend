@@ -9,12 +9,13 @@ import { TagEntity } from '../tag/tags.entity';
 import { UserEntity } from '../user/users.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { CloudinaryModule } from '../service/cloudinary.module';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([WorkflowEntity, LabelEntity, TagEntity, UserEntity]),
         JwtModule.register({
-            secret: process.env.JWT_SECRET,
+            secret: getJwtSecret(),
             signOptions: {},
       }),
       CloudinaryModule,

@@ -7,13 +7,14 @@ import { SpikerService } from './spikers.service';
 import { SpikerController } from './spikers.controller';
 import { SpikersInitService } from './spikers-init.service';
 import { CloudinaryModule } from '../service/cloudinary.module';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SpikerEntity, UserEntity]),
     CloudinaryModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: getJwtSecret(),
       signOptions: {},
     }),
   ],

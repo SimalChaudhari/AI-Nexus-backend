@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Injectable()
 export class OptionalJwtAuthGuard implements CanActivate {
@@ -12,7 +13,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
       
         if (token) {
             try {
-                const decoded = this.jwtService.verify(token, { secret: process.env.JWT_SECRET });
+                const decoded = this.jwtService.verify(token, { secret: getJwtSecret() });
                 request.user = decoded;
                 console.log('✅ OptionalJwtAuthGuard: User authenticated:', decoded.id ? decoded.id.substring(0, 8) + '...' : 'no id');
             } catch (error) {

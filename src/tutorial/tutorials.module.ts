@@ -6,12 +6,13 @@ import { UserEntity } from '../user/users.entity';
 import { TutorialsService } from './tutorials.service';
 import { TutorialsController } from './tutorials.controller';
 import { TutorialsInitService } from './tutorials-init.service';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([TutorialEntity, UserEntity]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: getJwtSecret(),
       signOptions: {},
     }),
   ],

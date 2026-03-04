@@ -7,12 +7,13 @@ import { LanguageService } from './language.service';
 import { LanguageController } from './language.controller';
 import { LanguageInitService } from './language-init.service';
 import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
+import { getJwtSecret } from '../auth/jwt-secret';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([LanguageEntity, UserEntity]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET,
+      secret: getJwtSecret(),
       signOptions: {},
     }),
   ],

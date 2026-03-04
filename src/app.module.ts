@@ -18,11 +18,14 @@ import { AppController } from './app.controller';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // Load environment variables
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '.env.local', '.env-local', 'src/.env'],
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: (() => {
-        const dbUrl = process.env.DATABASE_URL || '';
+        const dbUrl ='postgres://postgres:root@localhost:5432/AI-Nexus';
         if (!dbUrl) {
           console.error('⚠️ DATABASE_URL environment variable is not set!');
           throw new Error('DATABASE_URL is required but not set in environment variables');

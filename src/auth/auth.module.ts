@@ -4,20 +4,23 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
-import * as dotenv from 'dotenv';
 import { UserEntity } from './../user/users.entity';
-
 import { EmailService } from './../service/email.service';
-dotenv.config(); // Load environment variables
-@Module({
-  imports: [TypeOrmModule.forFeature([UserEntity]),
-  JwtModule.register({
-    secret: process.env.JWT_SECRET, // Use your JWT secret from the .env file
-    signOptions: { }, // Set your token expiration
-  }),
+import { getJwtSecret } from './jwt-secret';
 
-],
-  providers: [AuthService,EmailService],
+if (!process.env.JWT_SECRET?.trim()) {
+  console.warn('⚠️ JWT_SECRET is not set; using default. Set JWT_SECRET in .env or .env-local for production.');
+}
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([UserEntity]),
+    JwtModule.register({
+      secret: getJwtSecret(),
+      signOptions: {},
+    }),
+  ],
+  providers: [AuthService, EmailService],
   controllers: [AuthController],
   exports: [AuthService],
 })
