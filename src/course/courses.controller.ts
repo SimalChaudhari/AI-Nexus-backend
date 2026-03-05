@@ -27,12 +27,21 @@ import { RolesGuard } from '../jwt/roles.guard';
 import { Roles } from '../jwt/roles.decorator';
 import { SessionGuard } from '../jwt/session.guard';
 import { CloudinaryService } from '../service/cloudinary.service';
+import { CourseModuleService } from './course-module.service';
+import { CreateCourseModuleDto, UpdateCourseModuleDto } from './course-module.dto';
+import { CourseModuleSectionService } from './course-module-section.service';
+import {
+  CreateCourseModuleSectionDto,
+  UpdateCourseModuleSectionDto,
+} from './course-module-section.dto';
 
 @Controller('courses')
 export class CourseController {
     constructor(
         private readonly courseService: CourseService,
         private readonly cloudinaryService: CloudinaryService,
+        private readonly courseModuleService: CourseModuleService,
+        private readonly courseModuleSectionService: CourseModuleSectionService,
     ) {}
 
     @Get()
@@ -44,12 +53,120 @@ export class CourseController {
         });
     }
 
+    @Get(':courseId/modules/with-sections')
+    async getCourseModulesWithSections(
+        @Param('courseId') courseId: string,
+        @Res() response: Response,
+    ) {
+        const modules = await this.courseModuleService.findByCourseId(courseId);
+        const withSections = await Promise.all(
+            modules.map(async (mod) => {
+                const sections = await this.courseModuleSectionService.findByModuleId(mod.id);
+                return { ...mod, sections };
+            }),
+        );
+        return response.status(HttpStatus.OK).json({ data: withSections });
+    }
+
+    @Get(':courseId/modules/:moduleId/sections')
+    async getModuleSections(
+        @Param('moduleId') moduleId: string,
+        @Res() response: Response,
+    ) {
+        const sections = await this.courseModuleSectionService.findByModuleId(moduleId);
+        return response.status(HttpStatus.OK).json({ data: sections });
+    }
+
+    @Get(':courseId/modules')
+    async getCourseModules(@Param('courseId') courseId: string, @Res() response: Response) {
+        const modules = await this.courseModuleService.findByCourseId(courseId);
+        return response.status(HttpStatus.OK).json({
+            data: modules,
+        });
+    }
+
     @Get(':id')
     async getCourseById(@Param('id') id: string, @Res() response: Response) {
         const course = await this.courseService.getById(id);
         return response.status(HttpStatus.OK).json({
             data: course,
         });
+    }
+
+    @Post(':courseId/modules/:moduleId/sections')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async createModuleSection(
+        @Param('moduleId') moduleId: string,
+        @Body() dto: CreateCourseModuleSectionDto,
+        @Res() response: Response,
+    ) {
+        const section = await this.courseModuleSectionService.create(moduleId, dto);
+        return response.status(HttpStatus.CREATED).json({
+            message: 'Section created successfully',
+            data: section,
+        });
+    }
+
+    @Put('modules/sections/:id')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async updateModuleSection(
+        @Param('id') id: string,
+        @Body() dto: UpdateCourseModuleSectionDto,
+        @Res() response: Response,
+    ) {
+        const section = await this.courseModuleSectionService.update(id, dto);
+        return response.status(HttpStatus.OK).json({
+            message: 'Section updated successfully',
+            data: section,
+        });
+    }
+
+    @Delete('modules/sections/:id')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async deleteModuleSection(@Param('id') id: string, @Res() response: Response) {
+        const result = await this.courseModuleSectionService.delete(id);
+        return response.status(HttpStatus.OK).json(result);
+    }
+
+    @Post(':courseId/modules')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async createCourseModule(
+        @Param('courseId') courseId: string,
+        @Body() dto: CreateCourseModuleDto,
+        @Res() response: Response,
+    ) {
+        const module = await this.courseModuleService.create(courseId, dto);
+        return response.status(HttpStatus.CREATED).json({
+            message: 'Module created successfully',
+            data: module,
+        });
+    }
+
+    @Put('modules/:id')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async updateCourseModule(
+        @Param('id') id: string,
+        @Body() dto: UpdateCourseModuleDto,
+        @Res() response: Response,
+    ) {
+        const module = await this.courseModuleService.update(id, dto);
+        return response.status(HttpStatus.OK).json({
+            message: 'Module updated successfully',
+            data: module,
+        });
+    }
+
+    @Delete('modules/:id')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    async deleteCourseModule(@Param('id') id: string, @Res() response: Response) {
+        const result = await this.courseModuleService.delete(id);
+        return response.status(HttpStatus.OK).json(result);
     }
 
     @Post()
