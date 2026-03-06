@@ -7,7 +7,9 @@ import {
     Post,
     Delete,
     Put,
+    Patch,
     Body,
+    Req,
     Res,
     UseGuards,
     UseInterceptors,
@@ -18,8 +20,8 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { Response, Request } from 'express';
 import { UserRole } from '../user/users.entity';
-import { Response } from 'express';
 import { CourseService } from './courses.service';
 import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
 import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
@@ -34,6 +36,8 @@ import {
   CreateCourseModuleSectionDto,
   UpdateCourseModuleSectionDto,
 } from './course-module-section.dto';
+import { CourseProgressService } from './course-progress.service';
+import { UpdateCourseProgressDto } from './course-progress.dto';
 
 @Controller('courses')
 export class CourseController {
@@ -42,6 +46,7 @@ export class CourseController {
         private readonly cloudinaryService: CloudinaryService,
         private readonly courseModuleService: CourseModuleService,
         private readonly courseModuleSectionService: CourseModuleSectionService,
+        private readonly courseProgressService: CourseProgressService,
     ) {}
 
     @Get()
@@ -82,6 +87,52 @@ export class CourseController {
         const modules = await this.courseModuleService.findByCourseId(courseId);
         return response.status(HttpStatus.OK).json({
             data: modules,
+        });
+    }
+
+    @Get(':courseId/progress')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getCourseProgress(
+        @Param('courseId') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const progress = await this.courseProgressService.getProgress(userId, courseId);
+        return response.status(HttpStatus.OK).json({
+            data: progress
+                ? {
+                    currentSectionId: progress.currentSectionId,
+                    lastAccessedAt: progress.lastAccessedAt,
+                    viewedSectionIds: progress.viewedSectionIds ?? [],
+                  }
+                : null,
+        });
+    }
+
+    @Patch(':courseId/progress')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async updateCourseProgress(
+        @Param('courseId') courseId: string,
+        @Body() dto: UpdateCourseProgressDto,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const progress = await this.courseProgressService.upsertProgress(userId, courseId, dto);
+        return response.status(HttpStatus.OK).json({
+            message: 'Progress updated',
+            data: {
+                currentSectionId: progress.currentSectionId,
+                lastAccessedAt: progress.lastAccessedAt,
+                viewedSectionIds: progress.viewedSectionIds ?? [],
+            },
         });
     }
 
