@@ -38,6 +38,9 @@ import {
 } from './course-module-section.dto';
 import { CourseProgressService } from './course-progress.service';
 import { UpdateCourseProgressDto } from './course-progress.dto';
+import { CourseFavoriteService } from './course-favorite.service';
+import { CourseSectionFavoriteService } from './course-section-favorite.service';
+import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
 
 @Controller('courses')
 export class CourseController {
@@ -47,11 +50,30 @@ export class CourseController {
         private readonly courseModuleService: CourseModuleService,
         private readonly courseModuleSectionService: CourseModuleSectionService,
         private readonly courseProgressService: CourseProgressService,
+        private readonly courseFavoriteService: CourseFavoriteService,
+        private readonly courseSectionFavoriteService: CourseSectionFavoriteService,
     ) {}
 
     @Get()
-    async getAllCourses(@Res() response: Response) {
+    @UseGuards(OptionalJwtAuthGuard)
+    async getAllCourses(@Req() request: Request, @Res() response: Response) {
         const courses = await this.courseService.getAll();
+        const userId = (request as any).user?.id;
+        
+        // If user is authenticated, include favorite status
+        if (userId) {
+            const favoriteCourseIds = await this.courseFavoriteService.getUserFavoriteCourseIds(userId);
+            const coursesWithFavorites = courses.map((course) => ({
+                ...course,
+                isFavorite: favoriteCourseIds.includes(course.id),
+            }));
+            return response.status(HttpStatus.OK).json({
+                length: coursesWithFavorites.length,
+                data: coursesWithFavorites,
+            });
+        }
+        
+        // Return courses without favorite status for unauthenticated users
         return response.status(HttpStatus.OK).json({
             length: courses.length,
             data: courses,
@@ -137,8 +159,20 @@ export class CourseController {
     }
 
     @Get(':id')
-    async getCourseById(@Param('id') id: string, @Res() response: Response) {
+    @UseGuards(OptionalJwtAuthGuard)
+    async getCourseById(@Param('id') id: string, @Req() request: Request, @Res() response: Response) {
         const course = await this.courseService.getById(id);
+        const userId = (request as any).user?.id;
+        
+        // If user is authenticated, include favorite status
+        if (userId) {
+            const isFavorite = await this.courseFavoriteService.isFavorite(userId, id);
+            return response.status(HttpStatus.OK).json({
+                data: { ...course, isFavorite },
+            });
+        }
+        
+        // Return course without favorite status for unauthenticated users
         return response.status(HttpStatus.OK).json({
             data: course,
         });
@@ -326,6 +360,124 @@ export class CourseController {
 
         const result = await this.courseService.delete(id);
         return response.status(HttpStatus.OK).json(result);
+    }
+
+    @Post(':id/favorite')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async toggleFavorite(
+        @Param('id') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        // Verify course exists
+        await this.courseService.getById(courseId);
+        
+        const result = await this.courseFavoriteService.toggleFavorite(userId, courseId);
+        return response.status(HttpStatus.OK).json({
+            message: result.isFavorite ? 'Course added to favorites' : 'Course removed from favorites',
+            data: result,
+        });
+    }
+
+    @Get(':id/favorite-status')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getFavoriteStatus(
+        @Param('id') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        const isFavorite = await this.courseFavoriteService.isFavorite(userId, courseId);
+        return response.status(HttpStatus.OK).json({
+            data: { isFavorite },
+        });
+    }
+
+    @Get('favorites/list')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getUserFavorites(
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        const favorites = await this.courseFavoriteService.getUserFavorites(userId);
+        const courses = favorites.map((f) => ({ ...f.course, isFavorite: true }));
+        
+        return response.status(HttpStatus.OK).json({
+            length: courses.length,
+            data: courses,
+        });
+    }
+
+    // Section (Lesson) Favorites
+    @Post('sections/:sectionId/favorite')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async toggleSectionFavorite(
+        @Param('sectionId') sectionId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        // Verify section exists (foreign key constraint will handle validation)
+        
+        const result = await this.courseSectionFavoriteService.toggleFavorite(userId, sectionId);
+        return response.status(HttpStatus.OK).json({
+            message: result.isFavorite ? 'Section added to favorites' : 'Section removed from favorites',
+            data: result,
+        });
+    }
+
+    @Get('sections/:sectionId/favorite-status')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getSectionFavoriteStatus(
+        @Param('sectionId') sectionId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        const isFavorite = await this.courseSectionFavoriteService.isFavorite(userId, sectionId);
+        return response.status(HttpStatus.OK).json({
+            data: { isFavorite },
+        });
+    }
+
+    @Get(':courseId/sections/favorites')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getCourseSectionFavorites(
+        @Param('courseId') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        
+        const favoriteSectionIds = await this.courseSectionFavoriteService.getUserFavoritesByCourse(userId, courseId);
+        return response.status(HttpStatus.OK).json({
+            data: { sectionIds: favoriteSectionIds },
+        });
     }
 }
 

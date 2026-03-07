@@ -15,21 +15,25 @@ import { CourseProgressInitService } from './course-progress-init.service';
 import { UserEntity } from '../user/users.entity';
 import { CourseProgressEntity } from './course-progress.entity';
 import { CourseProgressService } from './course-progress.service';
+import { CourseFavoriteEntity } from './course-favorite.entity';
+import { CourseFavoriteService } from './course-favorite.service';
+import { CourseSectionFavoriteEntity } from './course-section-favorite.entity';
+import { CourseSectionFavoriteService } from './course-section-favorite.service';
 import { JwtModule } from '@nestjs/jwt';
 import { CloudinaryModule } from '../service/cloudinary.module';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([CourseEntity, CourseModuleEntity, CourseModuleSectionEntity, CourseProgressEntity, UserEntity]),
+        TypeOrmModule.forFeature([CourseEntity, CourseModuleEntity, CourseModuleSectionEntity, CourseProgressEntity, CourseFavoriteEntity, CourseSectionFavoriteEntity, UserEntity]),
         JwtModule.register({
             secret: process.env.JWT_SECRET,
             signOptions: {},
         }),
         CloudinaryModule,
     ],
-    providers: [CourseService, CourseModuleService, CourseModuleSectionService, CourseProgressService, CoursesInitService, CourseModuleInitService, CourseModuleSectionInitService, CourseProgressInitService],
+    providers: [CourseService, CourseModuleService, CourseModuleSectionService, CourseProgressService, CourseFavoriteService, CourseSectionFavoriteService, CoursesInitService, CourseModuleInitService, CourseModuleSectionInitService, CourseProgressInitService],
     controllers: [CourseController],
-    exports: [CourseService, CourseModuleService, CourseModuleSectionService, CourseProgressService],
+    exports: [CourseService, CourseModuleService, CourseModuleSectionService, CourseProgressService, CourseFavoriteService, CourseSectionFavoriteService],
 })
 export class CourseModule {}
 

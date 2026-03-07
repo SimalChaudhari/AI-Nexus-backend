@@ -89,6 +89,54 @@ export class CoursesInitService implements OnModuleInit {
         }
       }
 
+      // Check and create course_favorites table
+      console.log('🔍 Checking course_favorites table...');
+      const favoritesExists = await queryRunner.hasTable('course_favorites');
+      if (!favoritesExists) {
+        console.log('📋 Creating course_favorites table...');
+        await queryRunner.query(`
+          CREATE TABLE IF NOT EXISTS "course_favorites" (
+            "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+            "userId" uuid NOT NULL,
+            "courseId" uuid NOT NULL,
+            "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+            CONSTRAINT "PK_course_favorites" PRIMARY KEY ("id"),
+            CONSTRAINT "UQ_course_favorites_user_course" UNIQUE ("userId", "courseId"),
+            CONSTRAINT "FK_course_favorites_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE,
+            CONSTRAINT "FK_course_favorites_course" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE
+          )
+        `);
+        await queryRunner.query(`CREATE INDEX "IDX_course_favorites_userId" ON "course_favorites" ("userId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_course_favorites_courseId" ON "course_favorites" ("courseId")`);
+        console.log('✅ course_favorites table created successfully');
+      } else {
+        console.log('✅ course_favorites table already exists');
+      }
+
+      // Check and create course_section_favorites table
+      console.log('🔍 Checking course_section_favorites table...');
+      const sectionFavoritesExists = await queryRunner.hasTable('course_section_favorites');
+      if (!sectionFavoritesExists) {
+        console.log('📋 Creating course_section_favorites table...');
+        await queryRunner.query(`
+          CREATE TABLE IF NOT EXISTS "course_section_favorites" (
+            "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+            "userId" uuid NOT NULL,
+            "sectionId" uuid NOT NULL,
+            "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+            CONSTRAINT "PK_course_section_favorites" PRIMARY KEY ("id"),
+            CONSTRAINT "UQ_course_section_favorites_user_section" UNIQUE ("userId", "sectionId"),
+            CONSTRAINT "FK_course_section_favorites_user" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE,
+            CONSTRAINT "FK_course_section_favorites_section" FOREIGN KEY ("sectionId") REFERENCES "course_module_sections"("id") ON DELETE CASCADE
+          )
+        `);
+        await queryRunner.query(`CREATE INDEX "IDX_course_section_favorites_userId" ON "course_section_favorites" ("userId")`);
+        await queryRunner.query(`CREATE INDEX "IDX_course_section_favorites_sectionId" ON "course_section_favorites" ("sectionId")`);
+        console.log('✅ course_section_favorites table created successfully');
+      } else {
+        console.log('✅ course_section_favorites table already exists');
+      }
+
       await queryRunner.release();
     } catch (error) {
       console.error('❌ Error initializing courses table:', error instanceof Error ? error.message : error);
