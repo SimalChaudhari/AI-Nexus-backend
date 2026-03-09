@@ -1,0 +1,87 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ReviewEntity } from './review.entity';
+import { CreateReviewDto } from './review.dto';
+import { UpdateReviewDto } from './review.dto';
+
+@Injectable()
+export class ReviewService {
+  constructor(
+    @InjectRepository(ReviewEntity)
+    private readonly reviewRepository: Repository<ReviewEntity>,
+  ) {}
+
+  private normalizePayload(dto: CreateReviewDto | UpdateReviewDto | (CreateReviewDto & { courseId?: string | null; spikerId?: string | null })): Partial<ReviewEntity> {
+    const isSpiker = dto.isSpiker === true;
+    const isCourse = isSpiker ? false : (dto.isCourse !== false);
+    const payload: Partial<ReviewEntity> = {
+      ...(dto as Partial<ReviewEntity>),
+      isSpiker,
+      isCourse,
+    };
+    if (isSpiker) {
+      payload.courseId = null;
+      payload.spikerId = dto.spikerId ?? undefined;
+    } else {
+      payload.spikerId = null;
+      payload.courseId = dto.courseId ?? undefined;
+    }
+    return payload;
+  }
+
+  async create(dto: CreateReviewDto): Promise<ReviewEntity> {
+    const payload = this.normalizePayload(dto);
+    if (payload.isCourse && !payload.courseId) {
+      throw new BadRequestException('courseId is required when reviewing a course');
+    }
+    if (payload.isSpiker && !payload.spikerId) {
+      throw new BadRequestException('spikerId is required when reviewing a spiker');
+    }
+    const entity = this.reviewRepository.create(payload);
+    return this.reviewRepository.save(entity);
+  }
+
+  async findAll(filters?: { courseId?: string; spikerId?: string; userId?: string }): Promise<ReviewEntity[]> {
+    const where: Record<string, unknown> = {};
+    if (filters?.courseId) where.courseId = filters.courseId;
+    if (filters?.spikerId) where.spikerId = filters.spikerId;
+    if (filters?.userId) where.userId = filters.userId;
+    return this.reviewRepository.find({
+      where,
+      relations: ['user', 'course', 'spiker'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string): Promise<ReviewEntity | null> {
+    return this.reviewRepository.findOne({
+      where: { id },
+      relations: ['user', 'course', 'spiker'],
+    });
+  }
+
+  async update(id: string, dto: UpdateReviewDto): Promise<ReviewEntity> {
+    const existing = await this.reviewRepository.findOne({ where: { id } });
+    if (!existing) {
+      throw new BadRequestException('Review not found');
+    }
+    const payload = this.normalizePayload({ ...existing, ...dto } as CreateReviewDto);
+    const updateData: Record<string, unknown> = {
+      isSpiker: payload.isSpiker,
+      isCourse: payload.isCourse,
+      rating: payload.rating ?? existing.rating,
+      feedback: payload.feedback !== undefined ? payload.feedback : existing.feedback,
+      courseId: payload.courseId ?? null,
+      spikerId: payload.spikerId ?? null,
+    };
+    await this.reviewRepository.update(id, updateData);
+    const updated = await this.findOne(id);
+    if (!updated) throw new BadRequestException('Review not found');
+    return updated;
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.reviewRepository.delete(id);
+  }
+}

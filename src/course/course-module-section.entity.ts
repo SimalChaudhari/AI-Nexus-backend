@@ -29,6 +29,12 @@ export class CourseModuleSectionEntity {
   @Column({ type: 'text', nullable: true })
   content?: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  watchtime?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  images?: string[];
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 

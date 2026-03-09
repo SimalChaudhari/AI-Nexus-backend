@@ -20,12 +20,6 @@ export class SpikerEntity {
   @Column({ type: 'text', nullable: true })
   about?: string;
 
-  @Column({ type: 'int', default: 0 })
-  totalstudent!: number;
-
-  @Column({ type: 'decimal', precision: 3, scale: 2, nullable: true })
-  review?: number;
-
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 

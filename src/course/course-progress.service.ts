@@ -23,6 +23,14 @@ export class CourseProgressService {
     });
   }
 
+  /** Get all course progress entries for a user (for admin view). */
+  async getAllProgressByUserId(userId: string): Promise<CourseProgressEntity[]> {
+    return this.progressRepository.find({
+      where: { userId },
+      order: { lastAccessedAt: 'DESC' },
+    });
+  }
+
   async upsertProgress(
     userId: string,
     courseId: string,

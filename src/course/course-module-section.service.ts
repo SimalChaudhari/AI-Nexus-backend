@@ -41,6 +41,8 @@ export class CourseModuleSectionService {
       videoUrl: dto.videoUrl,
       description: dto.description,
       content: dto.content,
+      watchtime: dto.watchtime,
+      images: dto.images,
       sortOrder,
     });
     return this.sectionRepository.save(section);
@@ -56,6 +58,8 @@ export class CourseModuleSectionService {
     if (dto.videoUrl !== undefined) section.videoUrl = dto.videoUrl;
     if (dto.description !== undefined) section.description = dto.description;
     if (dto.content !== undefined) section.content = dto.content;
+    if (dto.watchtime !== undefined) section.watchtime = dto.watchtime;
+    if (dto.images !== undefined) section.images = dto.images;
     if (dto.sortOrder !== undefined) section.sortOrder = dto.sortOrder;
     return this.sectionRepository.save(section);
   }

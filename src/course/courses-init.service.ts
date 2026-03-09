@@ -21,14 +21,12 @@ export class CoursesInitService implements OnModuleInit {
             "title" varchar NOT NULL,
             "description" text,
             "image" text,
-            "video" varchar(500),
             "freeOrPaid" boolean NOT NULL DEFAULT false,
             "amount" decimal(10,2) DEFAULT 0,
             "level" varchar NOT NULL DEFAULT 'Beginner',
             "languageIds" jsonb,
             "spikerIds" jsonb,
             "marketData" jsonb,
-            "review" decimal(10,2) DEFAULT 0,
             "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
             "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
             CONSTRAINT "PK_courses" PRIMARY KEY ("id")
@@ -37,15 +35,24 @@ export class CoursesInitService implements OnModuleInit {
         console.log('✅ Courses table created successfully');
       } else {
         console.log('✅ Courses table already exists');
-        // Add video column if it doesn't exist (for existing databases)
+        // Drop deprecated columns if they exist (video, review removed from schema)
         const hasVideoColumn = await queryRunner.query(`
           SELECT column_name FROM information_schema.columns
           WHERE table_name = 'courses' AND column_name = 'video'
         `);
-        if (!hasVideoColumn?.length) {
-          console.log('📋 Adding video column to courses table...');
-          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "video" varchar(500)`);
-          console.log('✅ Video column added successfully');
+        if (hasVideoColumn?.length) {
+          console.log('📋 Dropping deprecated video column from courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" DROP COLUMN IF EXISTS "video"`);
+          console.log('✅ video column dropped');
+        }
+        const hasReviewColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'review'
+        `);
+        if (hasReviewColumn?.length) {
+          console.log('📋 Dropping deprecated review column from courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" DROP COLUMN IF EXISTS "review"`);
+          console.log('✅ review column dropped');
         }
 
         const hasLanguageIdsColumn = await queryRunner.query(`
@@ -76,16 +83,6 @@ export class CoursesInitService implements OnModuleInit {
           console.log('📋 Adding marketData column to courses table...');
           await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "marketData" jsonb`);
           console.log('✅ marketData column added successfully');
-        }
-
-        const hasReviewColumn = await queryRunner.query(`
-          SELECT column_name FROM information_schema.columns
-          WHERE table_name = 'courses' AND column_name = 'review'
-        `);
-        if (!hasReviewColumn?.length) {
-          console.log('📋 Adding review column to courses table...');
-          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "review" decimal(10,2) DEFAULT 0`);
-          console.log('✅ review column added successfully');
         }
       }
 

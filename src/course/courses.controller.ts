@@ -14,11 +14,12 @@ import {
     UseGuards,
     UseInterceptors,
     UploadedFile,
+    UploadedFiles,
     ParseFilePipe,
     MaxFileSizeValidator,
     FileTypeValidator,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response, Request } from 'express';
 import { UserRole } from '../user/users.entity';
@@ -40,6 +41,7 @@ import { CourseProgressService } from './course-progress.service';
 import { UpdateCourseProgressDto } from './course-progress.dto';
 import { CourseFavoriteService } from './course-favorite.service';
 import { CourseSectionFavoriteService } from './course-section-favorite.service';
+import { CourseEnrollmentService } from './course-enrollment.service';
 import { OptionalJwtAuthGuard } from '../jwt/optional-jwt-auth.guard';
 
 @Controller('courses')
@@ -52,6 +54,7 @@ export class CourseController {
         private readonly courseProgressService: CourseProgressService,
         private readonly courseFavoriteService: CourseFavoriteService,
         private readonly courseSectionFavoriteService: CourseSectionFavoriteService,
+        private readonly courseEnrollmentService: CourseEnrollmentService,
     ) {}
 
     @Get()
@@ -158,6 +161,67 @@ export class CourseController {
         });
     }
 
+    @Get('enrolled/list')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getEnrolledCourseIds(
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const courseIds = await this.courseEnrollmentService.getEnrolledCourseIds(userId);
+        return response.status(HttpStatus.OK).json({ data: { courseIds } });
+    }
+
+    @Get(':courseId/enrolled')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getCourseEnrolled(
+        @Param('courseId') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const enrolled = await this.courseEnrollmentService.isEnrolled(userId, courseId);
+        return response.status(HttpStatus.OK).json({ data: { enrolled } });
+    }
+
+    @Post('enroll/bulk')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async enrollBulk(
+        @Body() body: { courseIds?: string[] },
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const courseIds = Array.isArray(body?.courseIds) ? body.courseIds : [];
+        await this.courseEnrollmentService.enrollMany(userId, courseIds);
+        return response.status(HttpStatus.OK).json({ message: 'Enrolled', data: { count: courseIds.length } });
+    }
+
+    @Post(':courseId/enroll')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async enrollCourse(
+        @Param('courseId') courseId: string,
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        await this.courseService.getById(courseId); // ensure course exists
+        await this.courseEnrollmentService.enroll(userId, courseId);
+        return response.status(HttpStatus.OK).json({ message: 'Enrolled', data: { enrolled: true } });
+    }
+
     @Get(':id')
     @UseGuards(OptionalJwtAuthGuard)
     async getCourseById(@Param('id') id: string, @Req() request: Request, @Res() response: Response) {
@@ -176,6 +240,32 @@ export class CourseController {
         return response.status(HttpStatus.OK).json({
             data: course,
         });
+    }
+
+    @Post('modules/sections/upload-images')
+    @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
+    @Roles(UserRole.Admin)
+    @UseInterceptors(
+        FilesInterceptor('images', 20, {
+            storage: memoryStorage(),
+            limits: { fileSize: 5 * 1024 * 1024 },
+            fileFilter: (_req, file, cb) => {
+                const allowed = /^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.mimetype);
+                cb(null, allowed);
+            },
+        }),
+    )
+    async uploadSectionImages(
+        @UploadedFiles() files: Express.Multer.File[],
+        @Res() response: Response,
+    ) {
+        if (!files?.length) {
+            return response.status(HttpStatus.BAD_REQUEST).json({
+                message: 'No images uploaded',
+            });
+        }
+        const urls = await this.cloudinaryService.uploadMultipleImages(files, 'course-section');
+        return response.status(HttpStatus.OK).json({ data: { urls } });
     }
 
     @Post(':courseId/modules/:moduleId/sections')

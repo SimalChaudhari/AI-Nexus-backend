@@ -13,6 +13,7 @@ import { QuestionModule } from './question/questions.module';
 import { SpikerModule } from './spikers/spikers.module';
 import { LanguageModule } from './language/language.module';
 import { TutorialsModule } from './tutorial/tutorials.module';
+import { ReviewModule } from './review/review.module';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 
@@ -87,6 +88,7 @@ import { AppController } from './app.controller';
     SpikerModule,
     LanguageModule,
     TutorialsModule,
+    ReviewModule,
   ],
   controllers: [AppController],
 })

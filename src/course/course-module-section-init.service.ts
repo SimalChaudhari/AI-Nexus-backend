@@ -21,6 +21,8 @@ export class CourseModuleSectionInitService implements OnModuleInit {
             "videoUrl" varchar(500),
             "description" text,
             "content" text,
+            "watchtime" varchar(50),
+            "images" jsonb,
             "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
             "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
             CONSTRAINT "PK_course_module_sections" PRIMARY KEY ("id"),
@@ -33,6 +35,20 @@ export class CourseModuleSectionInitService implements OnModuleInit {
         } catch (alterErr) {
           if (alterErr instanceof Error && !alterErr.message?.includes('already exists')) {
             throw alterErr;
+          }
+        }
+        try {
+          await queryRunner.query(`ALTER TABLE "course_module_sections" ADD COLUMN "watchtime" varchar(50)`);
+        } catch (watchErr) {
+          if (watchErr instanceof Error && !watchErr.message?.includes('already exists')) {
+            throw watchErr;
+          }
+        }
+        try {
+          await queryRunner.query(`ALTER TABLE "course_module_sections" ADD COLUMN "images" jsonb`);
+        } catch (imgErr) {
+          if (imgErr instanceof Error && !imgErr.message?.includes('already exists')) {
+            throw imgErr;
           }
         }
       }

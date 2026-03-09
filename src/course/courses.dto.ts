@@ -32,10 +32,6 @@ export class CreateCourseDto {
     image?: string; // File path (converted from file in controller)
 
     @IsOptional()
-    @IsString()
-    video?: string; // YouTube or other video link
-
-    @IsOptional()
     @IsBoolean()
     freeOrPaid?: boolean;
 
@@ -66,12 +62,6 @@ export class CreateCourseDto {
     @IsArray()
     @IsUUID('4', { each: true })
     spikerIds?: string[];
-
-    @IsOptional()
-    @Transform(({ value }) => (value === '' || value === undefined || value === null ? undefined : Number(value)))
-    @IsNumber()
-    @Min(0)
-    review?: number;
 }
 
 // For updating course - all fields optional
@@ -87,10 +77,6 @@ export class UpdateCourseDto {
     @IsOptional()
     @IsString()
     image?: string;
-
-    @IsOptional()
-    @IsString()
-    video?: string;
 
     @IsOptional()
     @IsBoolean()
@@ -121,11 +107,5 @@ export class UpdateCourseDto {
     @IsArray()
     @IsUUID('4', { each: true })
     spikerIds?: string[];
-
-    @IsOptional()
-    @Transform(({ value }) => (value === '' || value === undefined || value === null ? undefined : Number(value)))
-    @IsNumber()
-    @Min(0)
-    review?: number;
 }
 

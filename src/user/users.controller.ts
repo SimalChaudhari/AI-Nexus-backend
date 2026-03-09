@@ -20,11 +20,15 @@ import { JwtAuthGuard } from './../jwt/jwt-auth.guard';
 import { RolesGuard } from './../jwt/roles.guard';
 import { Roles } from './../jwt/roles.decorator';
 import { SessionGuard } from './../jwt/session.guard';
+import { CourseProgressService } from '../course/course-progress.service';
 
 @Controller('users')
 @UseGuards(SessionGuard,JwtAuthGuard, RolesGuard)
 export class UserController {
-    constructor(private readonly userService: UserService) { }
+    constructor(
+        private readonly userService: UserService,
+        private readonly courseProgressService: CourseProgressService,
+    ) { }
     @Get()
     @Roles(UserRole.Admin)
     async getAllUsers(@Res() response: Response) {
@@ -50,6 +54,19 @@ export class UserController {
         return response.status(HttpStatus.OK).json({
             data: userWithoutPassword,
         });
+    }
+
+    @Get(':id/progress')
+    @Roles(UserRole.Admin)
+    async getUserProgress(@Param('id') id: string, @Res() response: Response) {
+        const progressList = await this.courseProgressService.getAllProgressByUserId(id);
+        const data = progressList.map((p) => ({
+            courseId: p.courseId,
+            currentSectionId: p.currentSectionId,
+            viewedSectionIds: p.viewedSectionIds ?? [],
+            lastAccessedAt: p.lastAccessedAt,
+        }));
+        return response.status(HttpStatus.OK).json({ data });
     }
 
     @Get(':id')

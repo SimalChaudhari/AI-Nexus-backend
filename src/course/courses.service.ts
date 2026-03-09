@@ -59,10 +59,6 @@ export class CourseService {
             courseData.image = createCourseDto.image;
         }
 
-        if (createCourseDto.video !== undefined && createCourseDto.video !== '') {
-            courseData.video = createCourseDto.video;
-        }
-
         if (createCourseDto.languageIds !== undefined) {
             courseData.languageIds = normalizeLanguageIds(createCourseDto.languageIds);
         }
@@ -71,9 +67,6 @@ export class CourseService {
         }
         if (createCourseDto.marketData !== undefined) {
             courseData.marketData = createCourseDto.marketData;
-        }
-        if (createCourseDto.review !== undefined) {
-            courseData.review = createCourseDto.review;
         }
 
         const course = this.courseRepository.create(courseData);
@@ -130,9 +123,6 @@ export class CourseService {
         if (updateCourseDto.level !== undefined) {
             course.level = updateCourseDto.level;
         }
-        if (updateCourseDto.video !== undefined) {
-            course.video = updateCourseDto.video === '' ? undefined : updateCourseDto.video;
-        }
         if (updateCourseDto.languageIds !== undefined) {
             course.languageIds = normalizeLanguageIds(updateCourseDto.languageIds);
         }
@@ -141,9 +131,6 @@ export class CourseService {
         }
         if (updateCourseDto.marketData !== undefined) {
             course.marketData = updateCourseDto.marketData;
-        }
-        if (updateCourseDto.review !== undefined) {
-            course.review = updateCourseDto.review;
         }
 
         await this.courseRepository.save(course);

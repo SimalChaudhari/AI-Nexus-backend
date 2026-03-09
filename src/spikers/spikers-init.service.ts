@@ -21,8 +21,6 @@ export class SpikersInitService implements OnModuleInit {
             "name" varchar NOT NULL,
             "profileimage" varchar,
             "about" text,
-            "totalstudent" integer NOT NULL DEFAULT 0,
-            "review" decimal(3,2),
             "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
             "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
             CONSTRAINT "PK_spikers" PRIMARY KEY ("id")
@@ -31,6 +29,25 @@ export class SpikersInitService implements OnModuleInit {
         console.log('✅ Spikers table created successfully');
       } else {
         console.log('✅ Spikers table already exists');
+        // Drop deprecated columns (totalstudent, review removed from schema)
+        const hasTotalstudentColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'spikers' AND column_name = 'totalstudent'
+        `);
+        if (hasTotalstudentColumn?.length) {
+          console.log('📋 Dropping deprecated totalstudent column from spikers table...');
+          await queryRunner.query(`ALTER TABLE "spikers" DROP COLUMN IF EXISTS "totalstudent"`);
+          console.log('✅ totalstudent column dropped');
+        }
+        const hasReviewColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'spikers' AND column_name = 'review'
+        `);
+        if (hasReviewColumn?.length) {
+          console.log('📋 Dropping deprecated review column from spikers table...');
+          await queryRunner.query(`ALTER TABLE "spikers" DROP COLUMN IF EXISTS "review"`);
+          console.log('✅ review column dropped');
+        }
         const hasOldCoursesColumn = await queryRunner.query(`
           SELECT column_name FROM information_schema.columns
           WHERE table_name = 'spikers' AND column_name = 'courses'

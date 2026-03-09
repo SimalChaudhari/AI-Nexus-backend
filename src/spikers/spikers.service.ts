@@ -34,8 +34,6 @@ export class SpikerService {
       name: createSpikerDto.name,
       profileimage: createSpikerDto.profileimage,
       about: createSpikerDto.about,
-      totalstudent: createSpikerDto.totalstudent ?? 0,
-      review: createSpikerDto.review,
     });
     await this.spikerRepository.save(spiker);
     return {
@@ -58,10 +56,6 @@ export class SpikerService {
     if (updateSpikerDto.profileimage !== undefined)
       spiker.profileimage = updateSpikerDto.profileimage;
     if (updateSpikerDto.about !== undefined) spiker.about = updateSpikerDto.about;
-    if (updateSpikerDto.totalstudent !== undefined)
-      spiker.totalstudent = updateSpikerDto.totalstudent;
-    if (updateSpikerDto.review !== undefined)
-      spiker.review = updateSpikerDto.review;
     await this.spikerRepository.save(spiker);
     return {
       message: 'Spiker updated successfully',

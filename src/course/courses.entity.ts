@@ -20,9 +20,6 @@ export class CourseEntity {
     @Column({ type: 'text', nullable: true })
     image?: string; // Store file path
 
-    @Column({ type: 'varchar', length: 500, nullable: true })
-    video?: string; // YouTube or other video link
-
     @Column({ type: 'boolean', default: false })
     freeOrPaid!: boolean; // false = free, true = paid
 
@@ -56,10 +53,6 @@ export class CourseEntity {
       },
     })
     marketData?: string;
-
-    /** Review count or rating (e.g. number of reviews) */
-    @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0 })
-    review?: number;
 
     @CreateDateColumn({ type: 'timestamp' })
     createdAt!: Date;

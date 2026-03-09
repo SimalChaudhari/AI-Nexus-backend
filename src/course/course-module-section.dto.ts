@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsString,
   IsNumber,
+  IsArray,
   Min,
   MaxLength,
 } from 'class-validator';
@@ -26,6 +27,17 @@ export class CreateCourseModuleSectionDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  watchtime?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(2000, { each: true })
+  images?: string[];
 
   @IsOptional()
   @IsNumber()
@@ -52,6 +64,17 @@ export class UpdateCourseModuleSectionDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  watchtime?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(2000, { each: true })
+  images?: string[];
 
   @IsOptional()
   @IsNumber()
