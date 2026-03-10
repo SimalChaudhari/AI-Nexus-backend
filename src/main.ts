@@ -26,8 +26,27 @@ async function bootstrap() {
     // Serve static files from assets directory
     app.use('/assets', express.static(join(process.cwd(), 'assets')));
 
-    // Enable JSON body parser with increased limit for large payloads
-    app.use(express.json({ limit: '50mb' }));
+    // Webhook route needs raw body for signature verification; skip json parser for it
+    app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+      if (req.path === '/api/payments/webhook') return next();
+      express.json({ limit: '50mb' })(req, res, next);
+    });
+    app.use(
+      '/api/payments/webhook',
+      express.raw({ type: 'application/json' }),
+      (req: express.Request, res: express.Response, next: express.NextFunction) => {
+        const raw = (req as any).body;
+        (req as any).rawBody = raw && Buffer.isBuffer(raw) ? raw.toString('utf8') : '';
+        try {
+          req.body = (req as any).rawBody ? JSON.parse((req as any).rawBody) : {};
+        } catch {
+          res.status(400).send('Invalid JSON');
+          return;
+        }
+        next();
+      },
+    );
+
     app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
     // Root route handler (before app.listen) - returns health check
@@ -44,6 +63,7 @@ async function bootstrap() {
 
     await app.listen(port);
     console.log(`Server is running on: http://localhost:${port}`);
+    // console.log(`Server is running on: port: ${process.env.PAYMENT_SECRET_KEY}`);
     console.log(`Health check: http://localhost:${port}/`);
     console.log(`API routes: http://localhost:${port}/api`);
 

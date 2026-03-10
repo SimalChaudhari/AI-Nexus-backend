@@ -16,6 +16,7 @@ import { TutorialsModule } from './tutorial/tutorials.module';
 import { ReviewModule } from './review/review.module';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { AppController } from './app.controller';
     LanguageModule,
     TutorialsModule,
     ReviewModule,
+    PaymentModule,
   ],
   controllers: [AppController],
 })
