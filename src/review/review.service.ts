@@ -21,8 +21,9 @@ export class ReviewService {
       isCourse,
     };
     if (isSpiker) {
-      payload.courseId = null;
       payload.spikerId = dto.spikerId ?? undefined;
+      // Store courseId when provided (e.g. feedback from course page). Rows with this courseId are deleted when the course is deleted (ON DELETE CASCADE).
+      payload.courseId = dto.courseId ?? null;
     } else {
       payload.spikerId = null;
       payload.courseId = dto.courseId ?? undefined;
@@ -44,7 +45,10 @@ export class ReviewService {
 
   async findAll(filters?: { courseId?: string; spikerId?: string; userId?: string }): Promise<ReviewEntity[]> {
     const where: Record<string, unknown> = {};
-    if (filters?.courseId) where.courseId = filters.courseId;
+    if (filters?.courseId) {
+      where.courseId = filters.courseId;
+      where.isCourse = true; // only course reviews (not spiker reviews that have courseId set)
+    }
     if (filters?.spikerId) where.spikerId = filters.spikerId;
     if (filters?.userId) where.userId = filters.userId;
     return this.reviewRepository.find({

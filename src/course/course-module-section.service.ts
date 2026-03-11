@@ -58,7 +58,10 @@ export class CourseModuleSectionService {
     if (dto.videoUrl !== undefined) section.videoUrl = dto.videoUrl;
     if (dto.description !== undefined) section.description = dto.description;
     if (dto.content !== undefined) section.content = dto.content;
-    if (dto.watchtime !== undefined) section.watchtime = dto.watchtime;
+    // When watchtime is missing, null, or empty string, store null so progress uses video length
+    if (dto.watchtime !== undefined) {
+      section.watchtime = (dto.watchtime == null || String(dto.watchtime).trim() === '') ? null : dto.watchtime;
+    }
     if (dto.images !== undefined) section.images = dto.images;
     if (dto.sortOrder !== undefined) section.sortOrder = dto.sortOrder;
     return this.sectionRepository.save(section);

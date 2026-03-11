@@ -30,7 +30,7 @@ export class CourseModuleSectionEntity {
   content?: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
-  watchtime?: string;
+  watchtime?: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
   images?: string[];

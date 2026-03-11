@@ -37,6 +37,19 @@ export class ReviewInitService implements OnModuleInit {
         console.log('✅ reviews table created successfully');
       } else {
         console.log('✅ reviews table already exists');
+        // Ensure course FK uses CASCADE so review rows are deleted when course is deleted
+        try {
+          await queryRunner.query(`
+            ALTER TABLE "reviews" DROP CONSTRAINT IF EXISTS "FK_reviews_course"
+          `);
+          await queryRunner.query(`
+            ALTER TABLE "reviews" ADD CONSTRAINT "FK_reviews_course" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE
+          `);
+          console.log('✅ FK_reviews_course updated to ON DELETE CASCADE');
+        } catch (alterErr: unknown) {
+          const msg = alterErr instanceof Error ? alterErr.message : String(alterErr);
+          console.warn('⚠️ Could not alter FK_reviews_course (may already be CASCADE):', msg);
+        }
       }
 
       await queryRunner.release();

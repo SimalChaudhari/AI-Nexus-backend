@@ -51,7 +51,34 @@ export class CourseSectionFavoriteService {
             .andWhere('module.courseId = :courseId', { courseId })
             .select('favorite.sectionId', 'sectionId')
             .getRawMany();
-        
+
         return favorites.map((f) => f.sectionId);
+    }
+
+    /** Get all favorite sections for the user with section, module, and course details (for single API favorites page). */
+    async getAllFavoriteSectionsWithDetails(userId: string): Promise<
+        { sectionId: string; sectionTitle: string; courseId: string; courseTitle: string; courseImage?: string; moduleTitle: string }[]
+    > {
+        const rows = await this.favoriteRepository
+            .createQueryBuilder('f')
+            .innerJoin('course_module_sections', 's', 's.id = f.sectionId')
+            .innerJoin('course_modules', 'm', 'm.id = s.moduleId')
+            .innerJoin('courses', 'c', 'c.id = m.courseId')
+            .where('f.userId = :userId', { userId })
+            .select('f.sectionId', 'sectionId')
+            .addSelect('s.title', 'sectionTitle')
+            .addSelect('c.id', 'courseId')
+            .addSelect('c.title', 'courseTitle')
+            .addSelect('c.image', 'courseImage')
+            .addSelect('m.title', 'moduleTitle')
+            .getRawMany();
+        return rows.map((r) => ({
+            sectionId: r.sectionId,
+            sectionTitle: r.sectionTitle || '',
+            courseId: r.courseId,
+            courseTitle: r.courseTitle || '',
+            courseImage: r.courseImage,
+            moduleTitle: r.moduleTitle || '',
+        }));
     }
 }

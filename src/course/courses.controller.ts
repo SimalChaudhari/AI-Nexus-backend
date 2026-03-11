@@ -175,6 +175,42 @@ export class CourseController {
         return response.status(HttpStatus.OK).json({ data: { courseIds } });
     }
 
+    @Get('progress/all')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getProgressAll(
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+        const progressList = await this.courseProgressService.getAllProgressByUserId(userId);
+        const modulesByCourse: Record<string, unknown[]> = {};
+        await Promise.all(
+            progressList.map(async (p) => {
+                const courseId = p.courseId;
+                const modules = await this.courseModuleService.findByCourseId(courseId);
+                const withSections = await Promise.all(
+                    modules.map(async (mod) => {
+                        const sections = await this.courseModuleSectionService.findByModuleId(mod.id);
+                        return { ...mod, sections };
+                    }),
+                );
+                modulesByCourse[courseId] = withSections;
+            }),
+        );
+        const progress = progressList.map((p) => ({
+            courseId: p.courseId,
+            currentSectionId: p.currentSectionId,
+            lastAccessedAt: p.lastAccessedAt,
+            viewedSectionIds: p.viewedSectionIds ?? [],
+        }));
+        return response.status(HttpStatus.OK).json({
+            data: { progress, modulesByCourse },
+        });
+    }
+
     @Get(':courseId/enrolled')
     @UseGuards(SessionGuard, JwtAuthGuard)
     async getCourseEnrolled(
@@ -502,13 +538,45 @@ export class CourseController {
         if (!userId) {
             return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
         }
-        
+
         const favorites = await this.courseFavoriteService.getUserFavorites(userId);
         const courses = favorites.map((f) => ({ ...f.course, isFavorite: true }));
-        
+
         return response.status(HttpStatus.OK).json({
             length: courses.length,
             data: courses,
+        });
+    }
+
+    @Get('favorites/all')
+    @UseGuards(SessionGuard, JwtAuthGuard)
+    async getFavoritesAll(
+        @Req() request: Request,
+        @Res() response: Response,
+    ) {
+        const userId = (request as any).user?.id;
+        if (!userId) {
+            return response.status(HttpStatus.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        }
+
+        const [courseFavorites, favoriteSections] = await Promise.all([
+            this.courseFavoriteService.getUserFavorites(userId),
+            this.courseSectionFavoriteService.getAllFavoriteSectionsWithDetails(userId),
+        ]);
+        const courses = courseFavorites.map((f) => ({ ...f.course, isFavorite: true }));
+
+        return response.status(HttpStatus.OK).json({
+            data: {
+                courses,
+                favoriteSections: favoriteSections.map((s) => ({
+                    id: s.sectionId,
+                    title: s.sectionTitle,
+                    courseId: s.courseId,
+                    courseTitle: s.courseTitle,
+                    courseImage: s.courseImage,
+                    moduleTitle: s.moduleTitle,
+                })),
+            },
         });
     }
 

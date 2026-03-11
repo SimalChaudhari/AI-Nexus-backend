@@ -9,6 +9,7 @@ import {
   Unique,
 } from 'typeorm';
 import { UserEntity } from '../user/users.entity';
+import { CourseEntity } from './courses.entity';
 
 @Entity('course_progress')
 @Unique(['userId', 'courseId'])
@@ -25,6 +26,10 @@ export class CourseProgressEntity {
 
   @Column({ type: 'uuid' })
   courseId!: string;
+
+  @ManyToOne(() => CourseEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'courseId' })
+  course!: CourseEntity;
 
   /** Section (lesson) id the user is currently on */
   @Column({ type: 'uuid' })
