@@ -26,9 +26,9 @@ export class SpikersInitService implements OnModuleInit {
             CONSTRAINT "PK_spikers" PRIMARY KEY ("id")
           )
         `);
-        console.log('✅ Spikers table created successfully');
+        console.log('✅ Speakers table created successfully');
       } else {
-        console.log('✅ Spikers table already exists');
+        console.log('✅ Speakers table already exists');
         // Drop deprecated columns (totalstudent, review removed from schema)
         const hasTotalstudentColumn = await queryRunner.query(`
           SELECT column_name FROM information_schema.columns

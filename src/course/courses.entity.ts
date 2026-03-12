@@ -37,7 +37,7 @@ export class CourseEntity {
     @Column({ type: 'jsonb', nullable: true })
     languageIds?: string[];
 
-    /** Spiker IDs (instructors/speakers) for this course */
+    /** speaker IDs (instructors/speakers) for this course */
     @Column({ type: 'jsonb', nullable: true })
     spikerIds?: string[];
 

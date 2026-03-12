@@ -22,7 +22,7 @@ export class SpikerService {
       where: { id },
     });
     if (!spiker) {
-      throw new NotFoundException('Spiker not found');
+      throw new NotFoundException('Speaker not found');
     }
     return spiker;
   }
@@ -37,7 +37,7 @@ export class SpikerService {
     });
     await this.spikerRepository.save(spiker);
     return {
-      message: 'Spiker created successfully',
+      message: 'Speaker created successfully',
       spiker,
     };
   }
@@ -50,7 +50,7 @@ export class SpikerService {
       where: { id },
     });
     if (!spiker) {
-      throw new NotFoundException('Spiker not found');
+      throw new NotFoundException('Speaker not found');
     }
     if (updateSpikerDto.name !== undefined) spiker.name = updateSpikerDto.name;
     if (updateSpikerDto.profileimage !== undefined)
@@ -58,7 +58,7 @@ export class SpikerService {
     if (updateSpikerDto.about !== undefined) spiker.about = updateSpikerDto.about;
     await this.spikerRepository.save(spiker);
     return {
-      message: 'Spiker updated successfully',
+      message: 'Speaker updated successfully',
       spiker,
     };
   }
@@ -66,9 +66,9 @@ export class SpikerService {
   async delete(id: string): Promise<{ message: string }> {
     const spiker = await this.spikerRepository.findOne({ where: { id } });
     if (!spiker) {
-      throw new NotFoundException('Spiker not found');
+      throw new NotFoundException('Speaker not found');
     }
     await this.spikerRepository.remove(spiker);
-    return { message: 'Spiker deleted successfully' };
+    return { message: 'Speaker deleted successfully' };
   }
 }

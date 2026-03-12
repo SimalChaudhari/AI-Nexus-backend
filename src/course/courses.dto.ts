@@ -56,7 +56,7 @@ export class CreateCourseDto {
     @IsString()
     marketData?: string;
 
-    /** Spiker IDs (UUIDs) - instructors for this course */
+    /** speaker IDs (UUIDs) - instructors for this course */
     @IsOptional()
     @Transform(({ value }) => toLanguageIdsArray(value))
     @IsArray()
