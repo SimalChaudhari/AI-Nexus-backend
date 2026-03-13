@@ -12,20 +12,20 @@ export class ReviewService {
     private readonly reviewRepository: Repository<ReviewEntity>,
   ) {}
 
-  private normalizePayload(dto: CreateReviewDto | UpdateReviewDto | (CreateReviewDto & { courseId?: string | null; spikerId?: string | null })): Partial<ReviewEntity> {
-    const isSpiker = dto.isSpiker === true;
-    const isCourse = isSpiker ? false : (dto.isCourse !== false);
+  private normalizePayload(dto: CreateReviewDto | UpdateReviewDto | (CreateReviewDto & { courseId?: string | null; speakerId?: string | null })): Partial<ReviewEntity> {
+    const isSpeaker = dto.isSpeaker === true;
+    const isCourse = isSpeaker ? false : (dto.isCourse !== false);
     const payload: Partial<ReviewEntity> = {
       ...(dto as Partial<ReviewEntity>),
-      isSpiker,
+      isSpeaker,
       isCourse,
     };
-    if (isSpiker) {
-      payload.spikerId = dto.spikerId ?? undefined;
+    if (isSpeaker) {
+      payload.speakerId = dto.speakerId ?? undefined;
       // Store courseId when provided (e.g. feedback from course page). Rows with this courseId are deleted when the course is deleted (ON DELETE CASCADE).
       payload.courseId = dto.courseId ?? null;
     } else {
-      payload.spikerId = null;
+      payload.speakerId = null;
       payload.courseId = dto.courseId ?? undefined;
     }
     return payload;
@@ -36,24 +36,24 @@ export class ReviewService {
     if (payload.isCourse && !payload.courseId) {
       throw new BadRequestException('courseId is required when reviewing a course');
     }
-    if (payload.isSpiker && !payload.spikerId) {
-      throw new BadRequestException('spikerId is required when reviewing a spiker');
+    if (payload.isSpeaker && !payload.speakerId) {
+      throw new BadRequestException('speakerId is required when reviewing a speaker');
     }
     const entity = this.reviewRepository.create(payload);
     return this.reviewRepository.save(entity);
   }
 
-  async findAll(filters?: { courseId?: string; spikerId?: string; userId?: string }): Promise<ReviewEntity[]> {
+  async findAll(filters?: { courseId?: string; speakerId?: string; userId?: string }): Promise<ReviewEntity[]> {
     const where: Record<string, unknown> = {};
     if (filters?.courseId) {
       where.courseId = filters.courseId;
-      where.isCourse = true; // only course reviews (not spiker reviews that have courseId set)
+      where.isCourse = true; // only course reviews (not speaker reviews that have courseId set)
     }
-    if (filters?.spikerId) where.spikerId = filters.spikerId;
+    if (filters?.speakerId) where.speakerId = filters.speakerId;
     if (filters?.userId) where.userId = filters.userId;
     return this.reviewRepository.find({
       where,
-      relations: ['user', 'course', 'spiker'],
+      relations: ['user', 'course', 'speaker'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -61,7 +61,7 @@ export class ReviewService {
   async findOne(id: string): Promise<ReviewEntity | null> {
     return this.reviewRepository.findOne({
       where: { id },
-      relations: ['user', 'course', 'spiker'],
+      relations: ['user', 'course', 'speaker'],
     });
   }
 
@@ -72,12 +72,12 @@ export class ReviewService {
     }
     const payload = this.normalizePayload({ ...existing, ...dto } as CreateReviewDto);
     const updateData: Record<string, unknown> = {
-      isSpiker: payload.isSpiker,
+      isSpeaker: payload.isSpeaker,
       isCourse: payload.isCourse,
       rating: payload.rating ?? existing.rating,
       feedback: payload.feedback !== undefined ? payload.feedback : existing.feedback,
       courseId: payload.courseId ?? null,
-      spikerId: payload.spikerId ?? null,
+      speakerId: payload.speakerId ?? null,
     };
     await this.reviewRepository.update(id, updateData);
     const updated = await this.findOne(id);

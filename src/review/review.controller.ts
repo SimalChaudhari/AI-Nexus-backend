@@ -32,13 +32,13 @@ export class ReviewController {
   @UseGuards(OptionalJwtAuthGuard)
   async findAll(
     @Query('courseId') courseId?: string,
-    @Query('spikerId') spikerId?: string,
+    @Query('speakerId') speakerId?: string,
     @Query('userId') userId?: string,
     @Res() res?: Response,
   ) {
     const reviews = await this.reviewService.findAll({
       ...(courseId && { courseId }),
-      ...(spikerId && { spikerId }),
+      ...(speakerId && { speakerId }),
       ...(userId && { userId }),
     });
     return res!.status(HttpStatus.OK).json({ length: reviews.length, data: reviews });

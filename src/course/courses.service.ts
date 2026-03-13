@@ -2,7 +2,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CourseEntity, CourseLevel } from './courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
@@ -43,6 +43,19 @@ export class CourseService {
         return course;
     }
 
+    /** Returns which of the given ids exist. Used e.g. for checkout validation. */
+    async findExistingIds(ids: string[]): Promise<{ existing: string[]; missing: string[] }> {
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (unique.length === 0) return { existing: [], missing: [] };
+        const courses = await this.courseRepository.find({
+            where: { id: In(unique) },
+            select: ['id'],
+        });
+        const existing = courses.map((c) => c.id);
+        const missing = unique.filter((id) => !existing.includes(id));
+        return { existing, missing };
+    }
+
     async create(createCourseDto: CreateCourseDto): Promise<{ message: string; course: CourseEntity }> {
         const courseData: Partial<CourseEntity> = {
             title: createCourseDto.title,
@@ -62,8 +75,8 @@ export class CourseService {
         if (createCourseDto.languageIds !== undefined) {
             courseData.languageIds = normalizeLanguageIds(createCourseDto.languageIds);
         }
-        if (createCourseDto.spikerIds !== undefined) {
-            courseData.spikerIds = normalizeLanguageIds(createCourseDto.spikerIds);
+        if (createCourseDto.speakerIds !== undefined) {
+            courseData.speakerIds = normalizeLanguageIds(createCourseDto.speakerIds);
         }
         if (createCourseDto.marketData !== undefined) {
             courseData.marketData = createCourseDto.marketData;
@@ -126,8 +139,8 @@ export class CourseService {
         if (updateCourseDto.languageIds !== undefined) {
             course.languageIds = normalizeLanguageIds(updateCourseDto.languageIds);
         }
-        if (updateCourseDto.spikerIds !== undefined) {
-            course.spikerIds = normalizeLanguageIds(updateCourseDto.spikerIds);
+        if (updateCourseDto.speakerIds !== undefined) {
+            course.speakerIds = normalizeLanguageIds(updateCourseDto.speakerIds);
         }
         if (updateCourseDto.marketData !== undefined) {
             course.marketData = updateCourseDto.marketData;

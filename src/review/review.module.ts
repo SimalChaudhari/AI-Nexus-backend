@@ -7,11 +7,11 @@ import { ReviewController } from './review.controller';
 import { ReviewInitService } from './review-init.service';
 import { UserEntity } from '../user/users.entity';
 import { CourseEntity } from '../course/courses.entity';
-import { SpikerEntity } from '../spikers/spikers.entity';
+import { SpeakerEntity } from '../speaker/speaker.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ReviewEntity, UserEntity, CourseEntity, SpikerEntity]),
+    TypeOrmModule.forFeature([ReviewEntity, UserEntity, CourseEntity, SpeakerEntity]),
     JwtModule.register({
       secret: process.env.JWT_SECRET,
       signOptions: {},

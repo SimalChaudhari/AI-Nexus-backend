@@ -9,12 +9,12 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../user/users.entity';
 import { CourseEntity } from '../course/courses.entity';
-import { SpikerEntity } from '../spikers/spikers.entity';
+import { SpeakerEntity } from '../speaker/speaker.entity';
 
 @Entity('reviews')
 @Index(['userId'])
 @Index(['courseId'])
-@Index(['spikerId'])
+@Index(['speakerId'])
 export class ReviewEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -23,7 +23,7 @@ export class ReviewEntity {
   userId!: string;
 
   @Column({ type: 'boolean', default: false })
-  isSpiker!: boolean;
+  isSpeaker!: boolean;
 
   @Column({ type: 'boolean', default: true })
   isCourse!: boolean;
@@ -32,7 +32,7 @@ export class ReviewEntity {
   courseId!: string | null;
 
   @Column({ type: 'uuid', nullable: true })
-  spikerId!: string | null;
+  speakerId!: string | null;
 
   @Column({ type: 'decimal', precision: 3, scale: 2 }) // e.g. 1.00 - 5.00
   rating!: number;
@@ -51,7 +51,7 @@ export class ReviewEntity {
   @JoinColumn({ name: 'courseId' })
   course?: CourseEntity | null;
 
-  @ManyToOne(() => SpikerEntity, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn({ name: 'spikerId' })
-  spiker?: SpikerEntity | null;
+  @ManyToOne(() => SpeakerEntity, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'speakerId' })
+  speaker?: SpeakerEntity | null;
 }

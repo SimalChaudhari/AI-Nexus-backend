@@ -4,7 +4,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class CreateSpikerDto {
+export class CreateSpeakerDto {
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -18,7 +18,7 @@ export class CreateSpikerDto {
   about?: string;
 }
 
-export class UpdateSpikerDto {
+export class UpdateSpeakerDto {
   @IsOptional()
   @IsString()
   name?: string;

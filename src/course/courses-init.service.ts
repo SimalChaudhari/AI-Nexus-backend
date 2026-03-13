@@ -25,7 +25,7 @@ export class CoursesInitService implements OnModuleInit {
             "amount" decimal(10,2) DEFAULT 0,
             "level" varchar NOT NULL DEFAULT 'Beginner',
             "languageIds" jsonb,
-            "spikerIds" jsonb,
+            "speakerIds" jsonb,
             "marketData" jsonb,
             "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
             "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -65,14 +65,23 @@ export class CoursesInitService implements OnModuleInit {
           console.log('✅ languageIds column added successfully');
         }
 
+        // Migrate spikerIds -> speakerIds if old column exists
         const hasSpikerIdsColumn = await queryRunner.query(`
           SELECT column_name FROM information_schema.columns
           WHERE table_name = 'courses' AND column_name = 'spikerIds'
         `);
-        if (!hasSpikerIdsColumn?.length) {
-          console.log('📋 Adding spikerIds column to courses table...');
-          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "spikerIds" jsonb`);
-          console.log('✅ spikerIds column added successfully');
+        const hasSpeakerIdsColumn = await queryRunner.query(`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'courses' AND column_name = 'speakerIds'
+        `);
+        if (hasSpikerIdsColumn?.length && !hasSpeakerIdsColumn?.length) {
+          console.log('📋 Migrating spikerIds to speakerIds in courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" RENAME COLUMN "spikerIds" TO "speakerIds"`);
+          console.log('✅ spikerIds renamed to speakerIds');
+        } else if (!hasSpeakerIdsColumn?.length) {
+          console.log('📋 Adding speakerIds column to courses table...');
+          await queryRunner.query(`ALTER TABLE "courses" ADD COLUMN "speakerIds" jsonb`);
+          console.log('✅ speakerIds column added successfully');
         }
 
         const hasMarketDataColumn = await queryRunner.query(`

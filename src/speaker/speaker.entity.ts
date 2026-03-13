@@ -6,8 +6,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('spikers')
-export class SpikerEntity {
+@Entity('speakers')
+export class SpeakerEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 

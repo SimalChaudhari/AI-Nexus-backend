@@ -18,7 +18,7 @@ export class CreateReviewDto {
   @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
-  isSpiker?: boolean;
+  isSpeaker?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -31,7 +31,7 @@ export class CreateReviewDto {
 
   @IsOptional()
   @IsUUID('4')
-  spikerId?: string | null;
+  speakerId?: string | null;
 
   @IsNumber()
   @Min(0)
@@ -48,7 +48,7 @@ export class UpdateReviewDto {
   @IsOptional()
   @IsBoolean()
   @Type(() => Boolean)
-  isSpiker?: boolean;
+  isSpeaker?: boolean;
 
   @IsOptional()
   @IsBoolean()
@@ -61,7 +61,7 @@ export class UpdateReviewDto {
 
   @IsOptional()
   @IsUUID('4')
-  spikerId?: string | null;
+  speakerId?: string | null;
 
   @IsOptional()
   @IsNumber()

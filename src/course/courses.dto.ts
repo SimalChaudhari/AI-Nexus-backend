@@ -61,7 +61,7 @@ export class CreateCourseDto {
     @Transform(({ value }) => toLanguageIdsArray(value))
     @IsArray()
     @IsUUID('4', { each: true })
-    spikerIds?: string[];
+    speakerIds?: string[];
 }
 
 // For updating course - all fields optional
@@ -106,6 +106,6 @@ export class UpdateCourseDto {
     @Transform(({ value }) => toLanguageIdsArray(value))
     @IsArray()
     @IsUUID('4', { each: true })
-    spikerIds?: string[];
+    speakerIds?: string[];
 }
 

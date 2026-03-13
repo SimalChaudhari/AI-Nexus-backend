@@ -10,13 +10,15 @@ import { TagModule } from './tag/tags.module';
 import { WorkflowModule } from './workflow/workflows.module';
 import { AnnouncementModule } from './announcement/announcements.module';
 import { QuestionModule } from './question/questions.module';
-import { SpikerModule } from './spikers/spikers.module';
+import { SpeakerModule } from './speaker/speaker.module';
 import { LanguageModule } from './language/language.module';
 import { TutorialsModule } from './tutorial/tutorials.module';
 import { ReviewModule } from './review/review.module';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { PaymentModule } from './payment/payment.module';
+import { OrderModule } from './order/order.module';
+import { CartModule } from './cart/cart.module';
 
 @Module({
   imports: [
@@ -86,11 +88,13 @@ import { PaymentModule } from './payment/payment.module';
     WorkflowModule,
     AnnouncementModule,
     QuestionModule,
-    SpikerModule,
+    SpeakerModule,
     LanguageModule,
     TutorialsModule,
     ReviewModule,
     PaymentModule,
+    OrderModule,
+    CartModule,
   ],
   controllers: [AppController],
 })

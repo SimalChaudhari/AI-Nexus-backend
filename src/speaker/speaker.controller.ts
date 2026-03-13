@@ -18,8 +18,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Response } from 'express';
-import { SpikerService } from './spikers.service';
-import { CreateSpikerDto, UpdateSpikerDto } from './spikers.dto';
+import { SpeakerService } from './speaker.service';
+import { CreateSpeakerDto, UpdateSpeakerDto } from './speaker.dto';
 import { JwtAuthGuard } from '../jwt/jwt-auth.guard';
 import { RolesGuard } from '../jwt/roles.guard';
 import { Roles } from '../jwt/roles.decorator';
@@ -30,27 +30,27 @@ import { CloudinaryService } from '../service/cloudinary.service';
 const PROFILE_IMAGE_LIMIT = 5 * 1024 * 1024; // 5MB
 const PROFILE_IMAGE_TYPE = /(jpg|jpeg|png|gif|webp)$/;
 
-@Controller('spikers')
-export class SpikerController {
+@Controller('speakers')
+export class SpeakerController {
   constructor(
-    private readonly spikerService: SpikerService,
+    private readonly speakerService: SpeakerService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   @Get()
-  async getAllSpikers(@Res() response: Response) {
-    const spikers = await this.spikerService.getAll();
+  async getAllSpeakers(@Res() response: Response) {
+    const speakers = await this.speakerService.getAll();
     return response.status(HttpStatus.OK).json({
-      length: spikers.length,
-      data: spikers,
+      length: speakers.length,
+      data: speakers,
     });
   }
 
   @Get(':id')
-  async getSpikerById(@Param('id') id: string, @Res() response: Response) {
-    const spiker = await this.spikerService.getById(id);
+  async getSpeakerById(@Param('id') id: string, @Res() response: Response) {
+    const speaker = await this.speakerService.getById(id);
     return response.status(HttpStatus.OK).json({
-      data: spiker,
+      data: speaker,
     });
   }
 
@@ -63,8 +63,8 @@ export class SpikerController {
       limits: { fileSize: PROFILE_IMAGE_LIMIT },
     }),
   )
-  async createSpiker(
-    @Body() createSpikerDto: CreateSpikerDto,
+  async createSpeaker(
+    @Body() createSpeakerDto: CreateSpeakerDto,
     @Res() response: Response,
     @UploadedFile(
       new ParseFilePipe({
@@ -78,10 +78,10 @@ export class SpikerController {
     file?: Express.Multer.File,
   ) {
     if (file) {
-      const imageUrl = await this.cloudinaryService.uploadImage(file, 'spiker');
-      createSpikerDto.profileimage = imageUrl;
+      const imageUrl = await this.cloudinaryService.uploadImage(file, 'speaker');
+      createSpeakerDto.profileimage = imageUrl;
     }
-    const result = await this.spikerService.create(createSpikerDto);
+    const result = await this.speakerService.create(createSpeakerDto);
     return response.status(HttpStatus.CREATED).json(result);
   }
 
@@ -94,9 +94,9 @@ export class SpikerController {
       limits: { fileSize: PROFILE_IMAGE_LIMIT },
     }),
   )
-  async updateSpiker(
+  async updateSpeaker(
     @Param('id') id: string,
-    @Body() updateSpikerDto: UpdateSpikerDto,
+    @Body() updateSpeakerDto: UpdateSpeakerDto,
     @Res() response: Response,
     @UploadedFile(
       new ParseFilePipe({
@@ -109,35 +109,35 @@ export class SpikerController {
     )
     file?: Express.Multer.File,
   ) {
-    const existing = await this.spikerService.getById(id);
+    const existing = await this.speakerService.getById(id);
     if (file) {
       if (existing.profileimage && existing.profileimage.startsWith('http')) {
         await this.cloudinaryService.deleteImage(existing.profileimage);
       }
-      const imageUrl = await this.cloudinaryService.uploadImage(file, 'spiker');
-      updateSpikerDto.profileimage = imageUrl;
-    } else if (updateSpikerDto.profileimage === '') {
+      const imageUrl = await this.cloudinaryService.uploadImage(file, 'speaker');
+      updateSpeakerDto.profileimage = imageUrl;
+    } else if (updateSpeakerDto.profileimage === '') {
       if (existing.profileimage && existing.profileimage.startsWith('http')) {
         await this.cloudinaryService.deleteImage(existing.profileimage);
       }
     }
-    const result = await this.spikerService.update(id, updateSpikerDto);
+    const result = await this.speakerService.update(id, updateSpeakerDto);
     return response.status(HttpStatus.OK).json(result);
   }
 
   @Delete('delete/:id')
   @UseGuards(SessionGuard, JwtAuthGuard, RolesGuard)
   @Roles(UserRole.Admin)
-  async deleteSpiker(@Param('id') id: string, @Res() response: Response) {
-    const spiker = await this.spikerService.getById(id);
-    if (spiker.profileimage && spiker.profileimage.startsWith('http')) {
+  async deleteSpeaker(@Param('id') id: string, @Res() response: Response) {
+    const speaker = await this.speakerService.getById(id);
+    if (speaker.profileimage && speaker.profileimage.startsWith('http')) {
       try {
-        await this.cloudinaryService.deleteImage(spiker.profileimage);
+        await this.cloudinaryService.deleteImage(speaker.profileimage);
       } catch (error) {
-        console.error('Error deleting spiker image from Cloudinary:', error);
+        console.error('Error deleting speaker image from Cloudinary:', error);
       }
     }
-    const result = await this.spikerService.delete(id);
+    const result = await this.speakerService.delete(id);
     return response.status(HttpStatus.OK).json(result);
   }
 }
