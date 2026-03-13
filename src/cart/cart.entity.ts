@@ -1,15 +1,12 @@
 import { Entity, Column, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
-/** Cart item shape matches frontend: id (course id), name, price, quantity, size, etc. */
+/** Cart item shape: id (course id), name, price, quantity. */
 export type CartItem = {
   id: string;
   name?: string;
   coverUrl?: string;
   price: number;
   quantity: number;
-  size?: string;
-  colors?: unknown[];
-  available?: number;
 };
 
 @Entity('user_cart')
