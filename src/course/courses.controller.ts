@@ -390,6 +390,7 @@ export class CourseController {
         })
     )
     async createCourse(
+        @Req() req: Request,
         @Body() createCourseDto: CreateCourseDto,
         @Res() response: Response,
         @UploadedFile(
@@ -410,6 +411,54 @@ export class CourseController {
         }
 
         const result = await this.courseService.create(createCourseDto);
+        const courseId = result.course.id;
+
+        // If modules (and optional sections) were sent, create them after the course.
+        // FormData sends modules as a JSON string; read from body in case DTO doesn't have it.
+        let modulesPayload: Array<{ title: string; description?: string; sortOrder?: number; sections?: Array<{ title: string; videoUrl?: string; description?: string; content?: string; watchtime?: string; images?: string[]; sortOrder?: number }> }> = [];
+        const raw = createCourseDto.modules ?? (req.body && (req.body as any).modules);
+        if (typeof raw === 'string' && raw.trim()) {
+            try {
+                const parsed = JSON.parse(raw) as unknown;
+                modulesPayload = Array.isArray(parsed) ? parsed : [];
+            } catch {
+                modulesPayload = [];
+            }
+        } else if (Array.isArray(raw)) {
+            modulesPayload = raw;
+        }
+        if (modulesPayload.length > 0) {
+            for (const mod of modulesPayload) {
+                try {
+                    const createdModule = await this.courseModuleService.create(courseId, {
+                        title: mod?.title ?? 'Untitled module',
+                        description: mod?.description,
+                        sortOrder: mod?.sortOrder,
+                    });
+                    const sections = mod?.sections;
+                    if (Array.isArray(sections) && sections.length > 0) {
+                        for (const sec of sections) {
+                            try {
+                                await this.courseModuleSectionService.create(createdModule.id, {
+                                    title: sec?.title ?? 'Untitled section',
+                                    videoUrl: sec?.videoUrl,
+                                    description: sec?.description,
+                                    content: sec?.content,
+                                    watchtime: sec?.watchtime,
+                                    images: sec?.images,
+                                    sortOrder: sec?.sortOrder,
+                                });
+                            } catch (sectionErr) {
+                                console.error('Error creating section:', sectionErr);
+                            }
+                        }
+                    }
+                } catch (moduleErr) {
+                    console.error('Error creating module:', moduleErr);
+                }
+            }
+        }
+
         return response.status(HttpStatus.CREATED).json({
             message: result.message,
             course: result.course,
